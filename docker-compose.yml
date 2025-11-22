@@ -9,6 +9,8 @@ services:
         environment:
             - MISTRAL_API_KEY=${MISTRAL_API_KEY}
             - API_KEY=${API_KEY}
+            - LOCATION_DEPARTMENT=${LOCATION_DEPARTMENT}
+            - FIRST_DATE=${FIRST_DATE}
             - DEBUG=false
         restart: unless-stopped
         volumes:

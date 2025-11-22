@@ -1,6 +1,7 @@
 """RAG service for managing the vector index and retrieval chain."""
 
 import logging
+import os
 import time
 from typing import Optional, Dict, Any
 from datetime import datetime
@@ -16,8 +17,8 @@ from pydantic import SecretStr
 
 from app.core.config import settings
 from app.core.index_manager import IndexManager
-from app.core.prompts import RAG_PROMPT
-from app.core.classification import classify_query_intent, INTENT_RAG, INTENT_CHAT
+from app.core.prompts import get_rag_prompt, get_chat_response
+from app.core.classification import classify_query_intent, INTENT_CHAT
 from app.external.openagenda_fetch import fetch_all_events, BASE_URL
 from app.utils.document_converter import event_to_langchain_document
 
@@ -134,11 +135,13 @@ class RAGService:
         """
         llm = self._get_llm()
 
-        prompt = ChatPromptTemplate.from_template(RAG_PROMPT)
+        # Get RAG prompt with location_department from environment
+        rag_prompt = get_rag_prompt()
+        prompt = ChatPromptTemplate.from_template(rag_prompt)
         stuff_chain = create_stuff_documents_chain(llm, prompt)
 
         rag_chain = create_retrieval_chain(
-            retriever=vector_store.as_retriever(search_kwargs={"k": 6}),
+            retriever=vector_store.as_retriever(search_kwargs={"k": 3}),
             combine_docs_chain=stuff_chain,
         )
 
@@ -315,16 +318,12 @@ class RAGService:
             if intent == INTENT_CHAT:
                 # Return a friendly chat response
                 logger.info(f"Chat intent detected for: '{question[:50]}...'")
-                answer = (
-                    "Je suis un assistant spécialisé dans les événements. "
-                    "Posez-moi une question sur les événements, activités, concerts, "
-                    "ateliers, etc. et je vous aiderai à trouver ce qui vous intéresse!"
-                )
+                answer = get_chat_response()
             else:  # INTENT_RAG
                 # Use RAG chain to answer with retry logic
                 logger.info(f"RAG intent detected for: '{question[:50]}...'")
                 if not self.is_ready():
-                    answer = "Je n'ai pas accès à l'index d'événements. Veuillez relancer l'application."
+                    answer = "Je n'ai pas accès à l'index d'événements. Veuillez relancer l'application ou rebuilder l'index."
                 else:
                     # Type: is_ready() ensures rag_chain is not None
                     result = self._invoke_with_retry(

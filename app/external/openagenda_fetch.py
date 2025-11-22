@@ -1,5 +1,6 @@
 """OpenAgenda API client for fetching events."""
 
+import os
 import requests
 from urllib.parse import quote
 from typing import Optional
@@ -74,9 +75,9 @@ class Event(BaseModel):
         extra = "allow"  # Allow extra fields that might be added by the API
 
 
-LOCATION_DEPARTMENT = "Pyrénées-Atlantiques"
+LOCATION_DEPARTMENT = os.getenv("LOCATION_DEPARTMENT", "Pyrénées-Atlantiques")
 ENCODED_DEPARTMENT = quote(LOCATION_DEPARTMENT)
-FIRST_DATE = "2025-01-01T00:00:00"
+FIRST_DATE = os.getenv("FIRST_DATE", "2025-01-01T00:00:00")
 LIMIT = 100
 
 BASE_URL = f"https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/evenements-publics-openagenda/records?where=location_department='{ENCODED_DEPARTMENT}' AND firstdate_begin>'{FIRST_DATE}'&limit={LIMIT}&order_by=firstdate_begin ASC"
