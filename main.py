@@ -1,6 +1,14 @@
-def main():
-    print("Hello from oc-p7-poc-rag!")
+"""Entrypoint for running the FastAPI application."""
+
+import uvicorn
+from app.core.config import settings
 
 
 if __name__ == "__main__":
-    main()
+    uvicorn.run(
+        "app.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=settings.debug,
+        log_level="info",
+    )

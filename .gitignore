@@ -178,3 +178,6 @@ Thumbs.db
 
 # Ignore model binaries
 app/ml/*.pkl
+
+# Generated data and indices
+data/

@@ -1,3 +1,5 @@
+"""OpenAgenda API client for fetching events."""
+
 import requests
 from urllib.parse import quote
 from typing import Optional
@@ -81,7 +83,7 @@ BASE_URL = f"https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/e
 
 
 def fetch_all_events(base_url, limit=LIMIT) -> list[Event]:
-    """Fetch all events by paginating through results using offset"""
+    """Fetch all events by paginating through results using offset."""
     all_events: list[Event] = []
     offset = 0
     total_count = None
@@ -111,10 +113,8 @@ def fetch_all_events(base_url, limit=LIMIT) -> list[Event]:
 
         # Stop if we've fetched all events
         if len(all_events) >= total_count:
-            # print(f"Fetched {len(all_events)} / {total_count} events")
             break
 
-        # print(f"Fetched {len(all_events)} / {total_count} events")
         offset += limit
 
     return all_events
