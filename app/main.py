@@ -1,12 +1,13 @@
 """Main FastAPI application."""
 
+import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import logging
 
 from app.core.config import settings
-from app.routes import health, rebuild, query
+from app.routes import health, query, rebuild
 from app.services import RAGService
 
 # Configure logging
@@ -34,13 +35,9 @@ async def lifespan(app: FastAPI):
         if result["status"] == "success":
             logger.info(f"✓ RAG index loaded successfully for {provider}")
         elif result["status"] == "not_found":
-            logger.warning(
-                f"⚠ No index found for {provider}. Call /rebuild?provider={provider} to create one."
-            )
+            logger.warning(f"⚠ No index found for {provider}. Call /rebuild?provider={provider} to create one.")
         else:
-            logger.error(
-                f"✗ Failed to load index for {provider}: {result.get('message')}"
-            )
+            logger.error(f"✗ Failed to load index for {provider}: {result.get('message')}")
 
     yield
 

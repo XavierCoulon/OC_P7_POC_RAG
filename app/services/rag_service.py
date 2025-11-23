@@ -1,25 +1,24 @@
 """RAG service for managing the vector index and retrieval chain."""
 
 import logging
-import os
 import time
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, Optional
 
-from langchain_mistralai import ChatMistralAI
-from langchain_community.vectorstores import FAISS
-from langchain_classic.chains.retrieval import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
+from langchain_classic.chains.retrieval import create_retrieval_chain
+from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
+from langchain_mistralai import ChatMistralAI
 from pydantic import SecretStr
 
+from app.core.classification import INTENT_CHAT, classify_query_intent
 from app.core.config import settings
-from app.core.index_manager import IndexManager
 from app.core.embeddings import EmbeddingProvider, create_embedding_provider
-from app.core.prompts import get_rag_prompt, get_chat_response
-from app.core.classification import classify_query_intent, INTENT_CHAT
-from app.external.openagenda_fetch import fetch_all_events, BASE_URL
+from app.core.index_manager import IndexManager
+from app.core.prompts import get_chat_response, get_rag_prompt
+from app.external.openagenda_fetch import BASE_URL, fetch_all_events
 from app.utils.document_converter import DocumentBuilder
 
 logger = logging.getLogger(__name__)
@@ -38,9 +37,7 @@ class RAGService:
         # Storage for multiple embedding providers and their indices
         self.embedding_providers: Dict[str, EmbeddingProvider] = {}
         self.vector_stores: Dict[str, Optional[FAISS]] = {}
-        self.rag_chains: Dict[
-            str, Optional[Runnable[Dict[str, Any], Dict[str, Any]]]
-        ] = {}
+        self.rag_chains: Dict[str, Optional[Runnable[Dict[str, Any], Dict[str, Any]]]] = {}
         self.index_managers: Dict[str, Optional[IndexManager]] = {}
 
         # Initialize storage for each provider
@@ -51,9 +48,7 @@ class RAGService:
 
         self.llm: Optional[ChatMistralAI] = None
 
-    def _get_or_create_embedding_provider(
-        self, provider_name: str
-    ) -> EmbeddingProvider:
+    def _get_or_create_embedding_provider(self, provider_name: str) -> EmbeddingProvider:
         """Get or create an embedding provider instance.
 
         Args:
@@ -135,11 +130,7 @@ class RAGService:
                 error_msg = str(e)
 
                 # Check for rate limit error
-                if (
-                    "429" in error_msg
-                    or "capacity exceeded" in error_msg
-                    or "rate limit" in error_msg.lower()
-                ):
+                if "429" in error_msg or "capacity exceeded" in error_msg or "rate limit" in error_msg.lower():
                     if attempt < max_retries - 1:
                         wait_time = initial_delay * (2**attempt)  # Exponential backoff
                         logger.warning(
@@ -160,9 +151,7 @@ class RAGService:
 
         return {"answer": "Erreur inconnue", "error": "unknown"}
 
-    def _create_rag_chain(
-        self, vector_store: FAISS
-    ) -> Runnable[Dict[str, Any], Dict[str, Any]]:
+    def _create_rag_chain(self, vector_store: FAISS) -> Runnable[Dict[str, Any], Dict[str, Any]]:
         """Create RAG chain from vector store.
 
         Args:
@@ -220,9 +209,7 @@ class RAGService:
             embedding_provider = self._get_or_create_embedding_provider(provider)
             embeddings = embedding_provider.get_embeddings()
             distance_strategy = embedding_provider.get_distance_strategy()
-            logger.info(
-                f"✓ Using {provider} embeddings with {distance_strategy} distance"
-            )
+            logger.info(f"✓ Using {provider} embeddings with {distance_strategy} distance")
 
             # Create embeddings and vector store
             logger.info("Creating embeddings and vector store...")
@@ -232,9 +219,7 @@ class RAGService:
                 embedding=embeddings,
                 distance_strategy=distance_strategy,
             )
-            logger.info(
-                f"✓ Created FAISS index with {vector_store.index.ntotal} vectors"
-            )
+            logger.info(f"✓ Created FAISS index with {vector_store.index.ntotal} vectors")
 
             # Save index
             logger.info("Saving index to disk...")
@@ -336,9 +321,7 @@ class RAGService:
                 "message": str(e),
             }
 
-    def get_rag_chain(
-        self, provider: str = "mistral"
-    ) -> Optional[Runnable[Dict[str, Any], Dict[str, Any]]]:
+    def get_rag_chain(self, provider: str = "mistral") -> Optional[Runnable[Dict[str, Any], Dict[str, Any]]]:
         """Get the current RAG chain for a provider.
 
         Args:
@@ -427,19 +410,18 @@ class RAGService:
                 events.append(
                     {
                         "title": title,
-                        "location": f"{metadata.get('location_city', 'Lieu non spécifié')} ({metadata.get('location_postalcode', 'CP')})",
-                        "start_date": metadata.get(
-                            "firstdate_begin", "Date non spécifiée"
+                        "location": (
+                            f"{metadata.get('location_city', 'Lieu non spécifié')} "
+                            f"({metadata.get('location_postalcode', 'CP')})"
                         ),
+                        "start_date": metadata.get("firstdate_begin", "Date non spécifiée"),
                         "url": metadata.get("canonicalurl", None),
                     }
                 )
 
         return events
 
-    def answer_question(
-        self, question: str, provider: str = "mistral"
-    ) -> Dict[str, Any]:
+    def answer_question(self, question: str, provider: str = "mistral") -> Dict[str, Any]:
         """Answer a question using RAG or return a chat response.
 
         Args:
@@ -471,11 +453,12 @@ class RAGService:
                 answer = get_chat_response()
             else:  # INTENT_RAG
                 # Use RAG chain to answer with retry logic
-                logger.info(
-                    f"RAG intent detected for: '{question[:50]}...' using {provider}"
-                )
+                logger.info(f"RAG intent detected for: '{question[:50]}...' using {provider}")
                 if not self.is_ready(provider):
-                    answer = f"Je n'ai pas accès à l'index d'événements pour le provider {provider}. Veuillez rebuilder l'index."
+                    answer = (
+                        f"Je n'ai pas accès à l'index d'événements pour le provider {provider}. "
+                        "Veuillez rebuilder l'index."
+                    )
                 else:
                     rag_chain = self.get_rag_chain(provider)
                     # Type: is_ready() ensures rag_chain is not None
@@ -494,14 +477,9 @@ class RAGService:
                         # Case 1: Geographic validation triggered
                         # Case 2: Truly no events found (not just "no events of that style")
                         if "Je suis spécialisé uniquement dans" in answer:
-                            logger.info(
-                                "Geographic validation triggered - no events returned"
-                            )
+                            logger.info("Geographic validation triggered - no events returned")
                             events = []
-                        elif (
-                            "Aucun événement correspondant trouvé" in answer
-                            and "de ce style" not in answer
-                        ):
+                        elif "Aucun événement correspondant trouvé" in answer and "de ce style" not in answer:
                             # Only block if truly no events, not if saying "no concerts but here are other events"
                             logger.info("No events found - no events returned")
                             events = []
@@ -509,9 +487,7 @@ class RAGService:
                             # Extract context documents (source events)
                             context = result.get("context", [])
                             events = self._extract_events_from_context(context)
-                            logger.info(
-                                f"✓ Extracted {len(events)} source events from context"
-                            )
+                            logger.info(f"✓ Extracted {len(events)} source events from context")
 
             return {
                 "status": "success",

@@ -3,7 +3,8 @@
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 from langchain_community.vectorstores import FAISS
 from langchain_mistralai import MistralAIEmbeddings
 
@@ -28,9 +29,7 @@ class IndexManager:
         self.index_mapping_path = self.index_dir / "index.pkl"  # Same as docstore
         self.metadata_path = self.index_dir / "metadata.json"
 
-    def save_index(
-        self, vector_store: FAISS, metadata: Optional[Dict[str, Any]] = None
-    ) -> bool:
+    def save_index(self, vector_store: FAISS, metadata: Optional[Dict[str, Any]] = None) -> bool:
         """Save FAISS index to disk.
 
         Args:
@@ -77,9 +76,7 @@ class IndexManager:
                 return None
 
             # Load FAISS index
-            vector_store = FAISS.load_local(
-                str(self.index_dir), embeddings, allow_dangerous_deserialization=True
-            )
+            vector_store = FAISS.load_local(str(self.index_dir), embeddings, allow_dangerous_deserialization=True)
 
             # Load and log metadata
             if self.metadata_path.exists():

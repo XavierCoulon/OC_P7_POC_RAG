@@ -1,9 +1,10 @@
 """Document processing and conversion utilities."""
 
 import re
+
 from bs4 import BeautifulSoup
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.external.openagenda_fetch import Event
 

@@ -1,8 +1,9 @@
 """Rebuild endpoint for RAG index."""
 
-from fastapi import APIRouter, HTTPException, Request, Depends, Query
-from pydantic import BaseModel
 import logging
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
 
 from app.core.security import verify_api_key
 
@@ -36,9 +37,7 @@ class ProvidersStatusResponse(BaseModel):
 
 
 @router.post("/rebuild", response_model=RebuildResponse)
-async def rebuild_rag_index(
-    request: Request, provider: str = Query("mistral", enum=["mistral", "huggingface"])
-):
+async def rebuild_rag_index(request: Request, provider: str = Query("mistral", enum=["mistral", "huggingface"])):
     """Rebuild the RAG index from OpenAgenda API for a specific provider.
 
     This fetches all events, creates embeddings using the specified provider,
@@ -67,9 +66,7 @@ async def rebuild_rag_index(
 
 
 @router.get("/index/info", response_model=IndexInfoResponse)
-async def get_index_information(
-    request: Request, provider: str = Query("mistral", enum=["mistral", "huggingface"])
-):
+async def get_index_information(request: Request, provider: str = Query("mistral", enum=["mistral", "huggingface"])):
     """Get information about the current index for a specific provider.
 
     Query Parameters:
@@ -96,9 +93,7 @@ async def get_index_information(
 
     except Exception as e:
         logger.error(f"Index info endpoint error: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error getting index info: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error getting index info: {str(e)}")
 
 
 @router.get("/providers/status", response_model=ProvidersStatusResponse)
@@ -119,6 +114,4 @@ async def get_providers_status(request: Request):
 
     except Exception as e:
         logger.error(f"Get providers status error: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error getting providers status: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error getting providers status: {str(e)}")

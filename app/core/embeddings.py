@@ -4,8 +4,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from langchain_mistralai import MistralAIEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_mistralai import MistralAIEmbeddings
 from pydantic import SecretStr
 
 logger = logging.getLogger(__name__)
@@ -62,9 +62,7 @@ class MistralEmbeddingProvider(EmbeddingProvider):
         """
         if self._embeddings is None:
             logger.debug("Initializing MistralAIEmbeddings...")
-            self._embeddings = MistralAIEmbeddings(
-                model="mistral-embed", api_key=SecretStr(self.api_key)
-            )
+            self._embeddings = MistralAIEmbeddings(model="mistral-embed", api_key=SecretStr(self.api_key))
         return self._embeddings
 
     def get_distance_strategy(self) -> str:
@@ -95,9 +93,7 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
             HuggingFaceEmbeddings instance
         """
         if self._embeddings is None:
-            logger.debug(
-                f"Initializing HuggingFaceEmbeddings with model: {self.model_name}..."
-            )
+            logger.debug(f"Initializing HuggingFaceEmbeddings with model: {self.model_name}...")
             self._embeddings = HuggingFaceEmbeddings(
                 model_name=self.model_name,
                 encode_kwargs={"normalize_embeddings": True},  # For COSINE distance
@@ -138,6 +134,4 @@ def create_embedding_provider(
         return HuggingFaceEmbeddingProvider(model_name or "all-MiniLM-L6-v2")
 
     else:
-        raise ValueError(
-            f"Unknown embedding provider: {provider_name}. Choose from: 'mistral', 'huggingface'"
-        )
+        raise ValueError(f"Unknown embedding provider: {provider_name}. Choose from: 'mistral', 'huggingface'")

@@ -1,6 +1,10 @@
 # Development commands
 .PHONY: up down rebuild precommit test coverage
 
+# Precommit commands
+precommit:
+	pre-commit run --all-files
+
 # Docker commands
 up:
 	docker compose up -d
@@ -12,7 +16,7 @@ rebuild:
 	docker compose down
 	docker compose build
 	docker compose up -d
-	
+
 # Run tests
 test:
 	pytest -v

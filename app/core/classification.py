@@ -1,8 +1,9 @@
 """Query intent classification logic."""
 
 import logging
-from langchain_mistralai import ChatMistralAI
+
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_mistralai import ChatMistralAI
 
 from app.core.prompts import CLASSIFICATION_PROMPT
 
@@ -38,9 +39,7 @@ def classify_query_intent(query: str, llm: ChatMistralAI) -> str:
             logging.info(f"Intent detected: {INTENT_CHAT}")
             return INTENT_CHAT
         else:
-            logging.warning(
-                f"Unclear classification received: '{intent}'. Using default intent: {DEFAULT_INTENT}"
-            )
+            logging.warning(f"Unclear classification received: '{intent}'. Using default intent: {DEFAULT_INTENT}")
             return DEFAULT_INTENT
 
     except Exception as e:

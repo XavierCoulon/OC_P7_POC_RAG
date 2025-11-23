@@ -6,8 +6,10 @@ import os
 CLASSIFICATION_PROMPT = """You are a classifier for an events chatbot.
 Respond only with "RAG" or "CHAT". Provide no other explanation.
 
-- Respond "RAG" if the question seeks specific event information (agenda, concerts, workshops, activities, location, hours, dates, prices, registration).
-- Respond "CHAT" if the question is a greeting, politeness, general conversation, off-topic, or social interaction.
+- Respond "RAG" if the question seeks specific event information
+  (agenda, concerts, workshops, activities, location, hours, dates, prices, registration).
+- Respond "CHAT" if the question is a greeting, politeness, general conversation,
+  off-topic, or social interaction.
 
 Examples:
 - "Quels événements sur la cuisine à Bayonne ?" -> RAG
@@ -43,13 +45,21 @@ Réponds à la question de l'utilisateur en utilisant UNIQUEMENT les événement
 
 # Format & Contraintes (IMPORTANT - appliquer à toutes les réponses)
 - Réponds de manière CONCISE (2-3 phrases max)
-- ⚠️ VALIDATION GÉOGRAPHIQUE STRICTE : Si l'utilisateur demande des événements dans une autre région/département/ville que {location_department}, réponds IMMÉDIATEMENT: "Je suis spécialisé uniquement dans {location_department}. Je ne dispose pas d'événements pour les autres régions."
-- TOUJOURS mentionner si tu as trouvé des événements dans le contexte, même s'ils ne correspondent pas exactement au type recherché
+- ⚠️ VALIDATION GÉOGRAPHIQUE STRICTE: Si l'utilisateur demande des événements
+  dans une autre région/département/ville que {location_department},
+  réponds IMMÉDIATEMENT: "Je suis spécialisé uniquement dans {location_department}.
+  Je ne dispose pas d'événements pour les autres régions."
+- TOUJOURS mentionner si tu as trouvé des événements dans le contexte,
+  même s'ils ne correspondent pas exactement au type recherché
 - Si des événements existent ET correspondent à la recherche → décris-les brièvement en 1-2 phrases
-- Si des événements existent MAIS ne correspondent pas au type cherché (ex: "concerts" mais tu trouves "musées") → réponds: "Aucun événement de ce style trouvé dans cette ville, mais voici d'autres événements disponibles..." et décris-les brièvement
-- Si LE CONTEXTE EST VIDE (vraiment aucun événement) → réponds : "Aucun événement correspondant trouvé en {location_department} pour cette recherche."
+- Si des événements existent MAIS ne correspondent pas au type cherché
+  (ex: "concerts" mais tu trouves "musées") → réponds: "Aucun événement de ce style
+  trouvé dans cette ville, mais voici d'autres événements disponibles..." et décris-les brièvement
+- Si LE CONTEXTE EST VIDE (vraiment aucun événement) → réponds:
+  "Aucun événement correspondant trouvé en {location_department} pour cette recherche."
 - NE FAIS PAS de suggestions alternatives longues ou d'événements non présents dans le contexte
-- NE RÉPÈTE PAS les détails (titre, adresse, date, URL) qui seront affichés séparément en liste structurée
+- NE RÉPÈTE PAS les détails (titre, adresse, date, URL) qui seront affichés séparément
+  en liste structurée
 
 # Données du Contexte (événements disponibles)
 {{context}}

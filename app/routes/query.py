@@ -1,9 +1,10 @@
 """Query endpoint for RAG."""
 
-from fastapi import APIRouter, HTTPException, Request, Depends, Query
-from pydantic import BaseModel
-from typing import List, Optional
 import logging
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
 
 from app.core.security import verify_api_key
 
@@ -64,9 +65,7 @@ async def ask_question(
         rag_service = request.app.state.rag_service
 
         # Use answer_question which handles classification and routing
-        result = rag_service.answer_question(
-            request_body.question, provider=embedding_provider
-        )
+        result = rag_service.answer_question(request_body.question, provider=embedding_provider)
 
         if result["status"] != "success":
             raise HTTPException(status_code=500, detail=result.get("answer"))

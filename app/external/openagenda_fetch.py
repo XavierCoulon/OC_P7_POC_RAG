@@ -1,11 +1,12 @@
 """OpenAgenda API client for fetching events."""
 
 import os
-import requests
-from urllib.parse import quote
-from typing import Optional
-from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
+from urllib.parse import quote
+
+import requests
+from pydantic import BaseModel
 
 
 class LocationCoordinates(BaseModel):
@@ -80,7 +81,12 @@ ENCODED_DEPARTMENT = quote(LOCATION_DEPARTMENT)
 FIRST_DATE = os.getenv("FIRST_DATE", "2025-01-01T00:00:00")
 LIMIT = 100
 
-BASE_URL = f"https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/evenements-publics-openagenda/records?where=location_department='{ENCODED_DEPARTMENT}' AND firstdate_begin>'{FIRST_DATE}'&limit={LIMIT}&order_by=firstdate_begin ASC"
+BASE_URL = (
+    f"https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/"
+    f"evenements-publics-openagenda/records"
+    f"?where=location_department='{ENCODED_DEPARTMENT}' AND firstdate_begin>'{FIRST_DATE}'"
+    f"&limit={LIMIT}&order_by=firstdate_begin ASC"
+)
 
 
 def fetch_all_events(base_url, limit=LIMIT) -> list[Event]:
