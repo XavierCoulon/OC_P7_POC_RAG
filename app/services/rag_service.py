@@ -490,11 +490,20 @@ class RAGService:
                         answer = result["answer"]
                     else:
                         answer = result.get("answer", "Aucune réponse générée")
-                        # Check if geographic validation was triggered (should not return events)
+                        # Check if model declined to answer (should not return events)
+                        # Case 1: Geographic validation triggered
+                        # Case 2: Truly no events found (not just "no events of that style")
                         if "Je suis spécialisé uniquement dans" in answer:
                             logger.info(
                                 "Geographic validation triggered - no events returned"
                             )
+                            events = []
+                        elif (
+                            "Aucun événement correspondant trouvé" in answer
+                            and "de ce style" not in answer
+                        ):
+                            # Only block if truly no events, not if saying "no concerts but here are other events"
+                            logger.info("No events found - no events returned")
                             events = []
                         else:
                             # Extract context documents (source events)
