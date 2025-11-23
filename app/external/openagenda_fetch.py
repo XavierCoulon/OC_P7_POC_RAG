@@ -6,7 +6,7 @@ from typing import Optional
 from urllib.parse import quote
 
 import requests
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class LocationCoordinates(BaseModel):
@@ -72,8 +72,7 @@ class Event(BaseModel):
     registration: Optional[str] = None
     links: Optional[str] = None
 
-    class Config:
-        extra = "allow"  # Allow extra fields that might be added by the API
+    model_config = ConfigDict(extra="allow")  # Allow extra fields from API
 
 
 LOCATION_DEPARTMENT = os.getenv("LOCATION_DEPARTMENT", "Pyrénées-Atlantiques")
