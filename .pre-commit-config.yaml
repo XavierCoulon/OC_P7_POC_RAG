@@ -25,7 +25,16 @@ repos:
       hooks:
           - id: flake8
             args:
-              - "--max-line-length"
-              - "120"
-              - "--extend-ignore"
-              - "E203,E231,W503,E221"
+                - "--max-line-length"
+                - "120"
+                - "--extend-ignore"
+                - "E203,E231,W503,E221"
+
+    - repo: local
+      hooks:
+          - id: pytest-quick
+            name: pytest (quick tests)
+            entry: python -m pytest tests/services/ tests/routes/ -v --tb=short
+            language: system
+            types: [python]
+            pass_filenames: false
