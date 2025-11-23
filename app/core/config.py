@@ -23,6 +23,10 @@ class Settings:
     # Mistral API settings
     mistral_api_key: str = os.getenv("MISTRAL_API_KEY", "")
 
+    # Embedding settings
+    default_embedding_provider: str = os.getenv("DEFAULT_EMBEDDING_PROVIDER", "mistral")
+    huggingface_model_name: str = os.getenv("HUGGINGFACE_MODEL_NAME", "all-MiniLM-L6-v2")
+
     # Data paths
     data_dir: Path = Path(os.getenv("DATA_DIR", "data"))
     index_dir: Path = data_dir / "index"

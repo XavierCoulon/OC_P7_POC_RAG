@@ -11,6 +11,9 @@ services:
             - API_KEY=${API_KEY}
             - LOCATION_DEPARTMENT=${LOCATION_DEPARTMENT}
             - FIRST_DATE=${FIRST_DATE}
+            - DEFAULT_EMBEDDING_PROVIDER=${DEFAULT_EMBEDDING_PROVIDER}
+            - HUGGINGFACE_MODEL_NAME=${HUGGINGFACE_MODEL_NAME}
+            - HF_HOME=/app/data/hf_cache
             - DEBUG=false
         restart: unless-stopped
         volumes:

@@ -1,6 +1,6 @@
 """Query endpoint for RAG."""
 
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from pydantic import BaseModel
 import logging
 
@@ -22,29 +22,40 @@ class QueryResponse(BaseModel):
     question: str
     answer: str
     intent: str = "RAG"  # RAG or CHAT
+    provider: str = "mistral"  # Embedding provider used
 
 
 @router.post("/ask", response_model=QueryResponse)
-async def ask_question(request_body: QueryRequest, request: Request):
+async def ask_question(
+    request_body: QueryRequest,
+    request: Request,
+    embedding_provider: str = Query("mistral", enum=["mistral", "huggingface"]),
+):
     """Ask a question to the RAG system with intent classification.
 
     This endpoint:
     1. Classifies the query intent (RAG or CHAT)
     2. If CHAT: Returns a friendly message
-    3. If RAG: Uses the vector index to answer
+    3. If RAG: Uses the vector index to answer (using specified embedding provider)
+
+    Query Parameters:
+        - embedding_provider: Embedding provider to use for RAG ("mistral" or "huggingface")
 
     Args:
         request_body: Query request with question
         request: FastAPI request object
+        embedding_provider: Which embedding provider to use
 
     Returns:
-        QueryResponse with answer and intent
+        QueryResponse with answer, intent, and provider used
     """
     try:
         rag_service = request.app.state.rag_service
 
         # Use answer_question which handles classification and routing
-        result = rag_service.answer_question(request_body.question)
+        result = rag_service.answer_question(
+            request_body.question, provider=embedding_provider
+        )
 
         if result["status"] != "success":
             raise HTTPException(status_code=500, detail=result.get("answer"))
@@ -53,6 +64,7 @@ async def ask_question(request_body: QueryRequest, request: Request):
             question=result["question"],
             answer=result["answer"],
             intent=result["intent"],
+            provider=result.get("provider", embedding_provider),
         )
 
     except HTTPException:

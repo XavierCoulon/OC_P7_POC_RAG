@@ -24,15 +24,23 @@ async def lifespan(app: FastAPI):
     Args:
         app: FastAPI application instance
     """
-    # Startup
-    logger.info("Loading RAG index on startup...")
-    result = rag_service.load_index()
-    if result["status"] == "success":
-        logger.info("✓ RAG index loaded successfully")
-    elif result["status"] == "not_found":
-        logger.warning("⚠ No index found on disk. Call /rebuild to create one.")
-    else:
-        logger.error(f"✗ Failed to load index: {result.get('message')}")
+    # Startup - Load indices for all providers
+    logger.info("Loading RAG indices on startup...")
+    providers = ["mistral", "huggingface"]
+
+    for provider in providers:
+        logger.info(f"Loading index for {provider}...")
+        result = rag_service.load_index(provider=provider)
+        if result["status"] == "success":
+            logger.info(f"✓ RAG index loaded successfully for {provider}")
+        elif result["status"] == "not_found":
+            logger.warning(
+                f"⚠ No index found for {provider}. Call /rebuild?provider={provider} to create one."
+            )
+        else:
+            logger.error(
+                f"✗ Failed to load index for {provider}: {result.get('message')}"
+            )
 
     yield
 

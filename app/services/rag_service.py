@@ -6,8 +6,7 @@ import time
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_mistralai import MistralAIEmbeddings, ChatMistralAI
+from langchain_mistralai import ChatMistralAI
 from langchain_community.vectorstores import FAISS
 from langchain_classic.chains.retrieval import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
@@ -17,10 +16,11 @@ from pydantic import SecretStr
 
 from app.core.config import settings
 from app.core.index_manager import IndexManager
+from app.core.embeddings import EmbeddingProvider, create_embedding_provider
 from app.core.prompts import get_rag_prompt, get_chat_response
 from app.core.classification import classify_query_intent, INTENT_CHAT
 from app.external.openagenda_fetch import fetch_all_events, BASE_URL
-from app.utils.document_converter import event_to_langchain_document
+from app.utils.document_converter import DocumentBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -28,22 +28,60 @@ logger = logging.getLogger(__name__)
 class RAGService:
     """Service for managing RAG pipeline, vector store, and retrieval chain."""
 
+    # Constants for RAG configuration
+    RETRIEVER_K = 6  # Number of documents to retrieve
+    DISTANCE_STRATEGY = "COSINE"
+    SUPPORTED_PROVIDERS = ["mistral", "huggingface"]
+
     def __init__(self):
         """Initialize RAG service."""
-        self.rag_chain: Optional[Runnable[Dict[str, Any], Dict[str, Any]]] = None
-        self.index_manager: Optional[IndexManager] = None
-        self.vector_store: Optional[FAISS] = None
+        # Storage for multiple embedding providers and their indices
+        self.embedding_providers: Dict[str, EmbeddingProvider] = {}
+        self.vector_stores: Dict[str, Optional[FAISS]] = {}
+        self.rag_chains: Dict[
+            str, Optional[Runnable[Dict[str, Any], Dict[str, Any]]]
+        ] = {}
+        self.index_managers: Dict[str, Optional[IndexManager]] = {}
+
+        # Initialize storage for each provider
+        for provider in self.SUPPORTED_PROVIDERS:
+            self.vector_stores[provider] = None
+            self.rag_chains[provider] = None
+            self.index_managers[provider] = None
+
         self.llm: Optional[ChatMistralAI] = None
 
-    def _initialize_embeddings(self) -> MistralAIEmbeddings:
-        """Initialize Mistral embeddings.
+    def _get_or_create_embedding_provider(
+        self, provider_name: str
+    ) -> EmbeddingProvider:
+        """Get or create an embedding provider instance.
+
+        Args:
+            provider_name: Name of the provider ("mistral" or "huggingface")
 
         Returns:
-            MistralAIEmbeddings instance
+            EmbeddingProvider instance
+
+        Raises:
+            ValueError: If provider_name is not supported
         """
-        return MistralAIEmbeddings(
-            model="mistral-embed", api_key=SecretStr(settings.mistral_api_key)
-        )
+        if provider_name not in self.SUPPORTED_PROVIDERS:
+            raise ValueError(
+                f"Unsupported embedding provider: {provider_name}. "
+                f"Choose from: {', '.join(self.SUPPORTED_PROVIDERS)}"
+            )
+
+        if provider_name not in self.embedding_providers:
+            if provider_name == "mistral":
+                self.embedding_providers[provider_name] = create_embedding_provider(
+                    "mistral", api_key=settings.mistral_api_key
+                )
+            elif provider_name == "huggingface":
+                self.embedding_providers[provider_name] = create_embedding_provider(
+                    "huggingface", model_name=settings.huggingface_model_name
+                )
+
+        return self.embedding_providers[provider_name]
 
     def _initialize_llm(self) -> ChatMistralAI:
         """Initialize Mistral LLM.
@@ -141,48 +179,58 @@ class RAGService:
         stuff_chain = create_stuff_documents_chain(llm, prompt)
 
         rag_chain = create_retrieval_chain(
-            retriever=vector_store.as_retriever(search_kwargs={"k": 3}),
+            retriever=vector_store.as_retriever(search_kwargs={"k": self.RETRIEVER_K}),
             combine_docs_chain=stuff_chain,
         )
 
         return rag_chain
 
-    def rebuild_index(self) -> Dict[str, Any]:
-        """Rebuild the RAG index from OpenAgenda API.
+    def rebuild_index(self, provider: str = "mistral") -> Dict[str, Any]:
+        """Rebuild the RAG index from OpenAgenda API for a specific provider.
+
+        Args:
+            provider: Embedding provider to rebuild for ("mistral" or "huggingface")
 
         Returns:
             Dictionary with rebuild status and metadata
         """
         try:
-            logger.info("Starting index rebuild...")
+            logger.info(f"Starting index rebuild for provider: {provider}...")
+
+            # Validate provider
+            if provider not in self.SUPPORTED_PROVIDERS:
+                return {
+                    "status": "error",
+                    "message": f"Unsupported provider: {provider}. Choose from: {', '.join(self.SUPPORTED_PROVIDERS)}",
+                }
 
             # Fetch events
             logger.info("Fetching events from OpenAgenda...")
             events = fetch_all_events(BASE_URL)
             logger.info(f"✓ Fetched {len(events)} events")
 
-            # Convert to documents
-            logger.info("Converting events to documents...")
-            documents = [event_to_langchain_document(event) for event in events]
-            logger.info(f"✓ Created {len(documents)} documents")
+            # Convert to documents (each event becomes multiple chunked documents)
+            logger.info("Converting events to documents and chunking...")
+            builder = DocumentBuilder()
+            all_documents = [doc for event in events for doc in builder.build(event)]
+            logger.info(f"✓ Created {len(all_documents)} chunks")
 
-            # Split documents
-            logger.info("Chunking documents...")
-            splitter = RecursiveCharacterTextSplitter(
-                chunk_size=500,
-                chunk_overlap=50,
-                separators=["\n\n", "\n", ".", " ", ""],
+            # Get embedding provider
+            logger.info(f"Getting embedding provider: {provider}...")
+            embedding_provider = self._get_or_create_embedding_provider(provider)
+            embeddings = embedding_provider.get_embeddings()
+            distance_strategy = embedding_provider.get_distance_strategy()
+            logger.info(
+                f"✓ Using {provider} embeddings with {distance_strategy} distance"
             )
-            split_documents = splitter.split_documents(documents)
-            logger.info(f"✓ Created {len(split_documents)} chunks")
 
             # Create embeddings and vector store
             logger.info("Creating embeddings and vector store...")
-            embeddings = self._initialize_embeddings()
+            assert embeddings is not None, "Embeddings initialization failed"
             vector_store = FAISS.from_documents(
-                documents=split_documents,
+                documents=all_documents,
                 embedding=embeddings,
-                distance_strategy="COSINE",
+                distance_strategy=distance_strategy,
             )
             logger.info(
                 f"✓ Created FAISS index with {vector_store.index.ntotal} vectors"
@@ -190,12 +238,13 @@ class RAGService:
 
             # Save index
             logger.info("Saving index to disk...")
-            index_manager = IndexManager(str(settings.index_dir))
+            index_manager = IndexManager(str(settings.index_dir / provider))
             metadata = {
+                "provider": provider,
                 "total_events": len(events),
-                "total_chunks": len(split_documents),
+                "total_chunks": len(all_documents),
                 "total_vectors": vector_store.index.ntotal,
-                "distance_strategy": "COSINE",
+                "distance_strategy": distance_strategy,
                 "rebuilt_at": datetime.now().isoformat(),
             }
             index_manager.save_index(vector_store, metadata)
@@ -205,90 +254,144 @@ class RAGService:
             rag_chain = self._create_rag_chain(vector_store)
 
             # Update instance state
-            self.vector_store = vector_store
-            self.rag_chain = rag_chain
-            self.index_manager = index_manager
+            self.vector_stores[provider] = vector_store
+            self.rag_chains[provider] = rag_chain
+            self.index_managers[provider] = index_manager
 
-            logger.info("✓ Index rebuild completed successfully")
+            logger.info(f"✓ Index rebuild for {provider} completed successfully")
             return {
                 "status": "success",
-                "message": "Index rebuilt successfully",
+                "provider": provider,
+                "message": f"Index rebuilt successfully for {provider}",
                 "metadata": metadata,
             }
 
         except Exception as e:
-            logger.error(f"✗ Index rebuild failed: {e}")
-            return {"status": "error", "message": str(e)}
+            logger.error(f"✗ Index rebuild for {provider} failed: {e}")
+            return {
+                "status": "error",
+                "provider": provider,
+                "message": str(e),
+            }
 
-    def load_index(self) -> Dict[str, Any]:
-        """Load RAG index from disk.
+    def load_index(self, provider: str = "mistral") -> Dict[str, Any]:
+        """Load RAG index from disk for a specific provider.
+
+        Args:
+            provider: Embedding provider to load index for ("mistral" or "huggingface")
 
         Returns:
             Dictionary with load status and metadata
         """
         try:
-            logger.info("Loading index from disk...")
+            logger.info(f"Loading index from disk for provider: {provider}...")
 
-            embeddings = self._initialize_embeddings()
-            index_manager = IndexManager(str(settings.index_dir))
+            # Validate provider
+            if provider not in self.SUPPORTED_PROVIDERS:
+                return {
+                    "status": "error",
+                    "message": f"Unsupported provider: {provider}. Choose from: {', '.join(self.SUPPORTED_PROVIDERS)}",
+                }
+
+            # Get embedding provider
+            embedding_provider = self._get_or_create_embedding_provider(provider)
+            embeddings = embedding_provider.get_embeddings()
+            assert embeddings is not None, "Embeddings initialization failed"
 
             # Try to load index
+            index_manager = IndexManager(str(settings.index_dir / provider))
             vector_store = index_manager.load_index(embeddings)
 
             if vector_store is None:
-                logger.warning("No index found, skipping load")
+                logger.warning(f"No index found for {provider}, skipping load")
                 return {
                     "status": "not_found",
-                    "message": "No index found on disk. Call /rebuild first.",
+                    "provider": provider,
+                    "message": f"No index found for {provider}. Call /rebuild first.",
                 }
 
             # Create RAG chain
             rag_chain = self._create_rag_chain(vector_store)
 
             # Update instance state
-            self.vector_store = vector_store
-            self.rag_chain = rag_chain
-            self.index_manager = index_manager
+            self.vector_stores[provider] = vector_store
+            self.rag_chains[provider] = rag_chain
+            self.index_managers[provider] = index_manager
 
             metadata = index_manager.get_index_info()
-            logger.info("✓ Index loaded successfully")
+            logger.info(f"✓ Index loaded successfully for {provider}")
 
             return {
                 "status": "success",
-                "message": "Index loaded successfully",
+                "provider": provider,
+                "message": f"Index loaded successfully for {provider}",
                 "metadata": metadata,
             }
 
         except Exception as e:
-            logger.error(f"✗ Index load failed: {e}")
-            return {"status": "error", "message": str(e)}
+            logger.error(f"✗ Index load for {provider} failed: {e}")
+            return {
+                "status": "error",
+                "provider": provider,
+                "message": str(e),
+            }
 
-    def get_rag_chain(self) -> Optional[Runnable[Dict[str, Any], Dict[str, Any]]]:
-        """Get the current RAG chain.
+    def get_rag_chain(
+        self, provider: str = "mistral"
+    ) -> Optional[Runnable[Dict[str, Any], Dict[str, Any]]]:
+        """Get the current RAG chain for a provider.
+
+        Args:
+            provider: Embedding provider name
 
         Returns:
             RAG chain or None if not initialized
         """
-        return self.rag_chain
+        return self.rag_chains.get(provider)
 
-    def get_index_info(self) -> Dict[str, Any]:
-        """Get information about the current index.
+    def get_index_info(self, provider: str = "mistral") -> Dict[str, Any]:
+        """Get information about the current index for a provider.
+
+        Args:
+            provider: Embedding provider name
 
         Returns:
             Index information dictionary
         """
-        if self.index_manager is None:
-            return {"status": "not_initialized"}
+        index_manager = self.index_managers.get(provider)
 
-        return self.index_manager.get_index_info()
+        if index_manager is None:
+            return {
+                "status": "not_initialized",
+                "provider": provider,
+            }
 
-    def is_ready(self) -> bool:
-        """Check if RAG service is ready for queries.
+        return index_manager.get_index_info()
+
+    def is_ready(self, provider: str = "mistral") -> bool:
+        """Check if RAG service is ready for queries with a specific provider.
+
+        Args:
+            provider: Embedding provider name
 
         Returns:
             True if rag_chain is initialized, False otherwise
         """
-        return self.rag_chain is not None
+        return self.rag_chains.get(provider) is not None
+
+    def get_available_providers(self) -> Dict[str, Dict[str, Any]]:
+        """Get status of all embedding providers.
+
+        Returns:
+            Dictionary with provider status information
+        """
+        result = {}
+        for provider in self.SUPPORTED_PROVIDERS:
+            result[provider] = {
+                "available": self.is_ready(provider),
+                "info": self.get_index_info(provider),
+            }
+        return result
 
     def classify_intent(self, query: str) -> str:
         """Classify the intent of a user query.
@@ -302,16 +405,29 @@ class RAGService:
         llm = self._get_llm()
         return classify_query_intent(query, llm)
 
-    def answer_question(self, question: str) -> Dict[str, Any]:
+    def answer_question(
+        self, question: str, provider: str = "mistral"
+    ) -> Dict[str, Any]:
         """Answer a question using RAG or return a chat response.
 
         Args:
             question: User's question
+            provider: Embedding provider to use for RAG ("mistral" or "huggingface")
 
         Returns:
-            Dictionary with question, answer, and intent
+            Dictionary with question, answer, intent, and provider used
         """
         try:
+            # Validate provider
+            if provider not in self.SUPPORTED_PROVIDERS:
+                return {
+                    "status": "error",
+                    "question": question,
+                    "provider": provider,
+                    "answer": f"Unsupported provider: {provider}",
+                    "intent": None,
+                }
+
             # Classify intent with retry logic
             intent = self.classify_intent(question)
 
@@ -321,13 +437,16 @@ class RAGService:
                 answer = get_chat_response()
             else:  # INTENT_RAG
                 # Use RAG chain to answer with retry logic
-                logger.info(f"RAG intent detected for: '{question[:50]}...'")
-                if not self.is_ready():
-                    answer = "Je n'ai pas accès à l'index d'événements. Veuillez relancer l'application ou rebuilder l'index."
+                logger.info(
+                    f"RAG intent detected for: '{question[:50]}...' using {provider}"
+                )
+                if not self.is_ready(provider):
+                    answer = f"Je n'ai pas accès à l'index d'événements pour le provider {provider}. Veuillez rebuilder l'index."
                 else:
+                    rag_chain = self.get_rag_chain(provider)
                     # Type: is_ready() ensures rag_chain is not None
                     result = self._invoke_with_retry(
-                        self.rag_chain,  # type: ignore
+                        rag_chain,  # type: ignore
                         {"input": question},
                         max_retries=3,
                         initial_delay=1,
@@ -342,6 +461,7 @@ class RAGService:
                 "question": question,
                 "answer": answer,
                 "intent": intent,
+                "provider": provider,
             }
 
         except Exception as e:
@@ -351,4 +471,5 @@ class RAGService:
                 "question": question,
                 "answer": f"Erreur lors du traitement: {str(e)}",
                 "intent": None,
+                "provider": provider,
             }

@@ -1,12 +1,41 @@
 """Document processing and conversion utilities."""
 
 import re
-import time
 from bs4 import BeautifulSoup
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
 from app.external.openagenda_fetch import Event
+
+
+def format_keywords(keywords_input) -> str:
+    """Format keywords as a clean string "keyword1, keyword2, ...".
+
+    Handles various input formats:
+    - List of strings: ['bricolage', 'jardinage'] -> "bricolage, jardinage"
+    - Semicolon-separated: 'bricothèque;bricolage;diy.' -> "bricothèque, bricolage, diy"
+    - Already a string: 'bricolage, jardinage' -> "bricolage, jardinage"
+
+    Args:
+        keywords_input: Keywords in any supported format
+
+    Returns:
+        str: Clean comma-separated keywords string
+    """
+    if not keywords_input:
+        return ""
+
+    # If it's a list, join directly
+    if isinstance(keywords_input, list):
+        return ", ".join(str(kw).strip() for kw in keywords_input if kw)
+
+    # If it's a string with semicolons, split and rejoin with commas
+    if ";" in keywords_input:
+        kws = keywords_input.split(";")
+        return ", ".join(kw.strip().rstrip(".") for kw in kws if kw.strip())
+
+    # Otherwise return as-is
+    return str(keywords_input).strip()
 
 
 def clean_html_content(html_content: str) -> str:
@@ -34,131 +63,144 @@ def normalize_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def build_document(event: Event) -> str:
-    """Build a formatted document from an Event object.
+def _safe_str_date(date_obj) -> str | None:
+    """Safely convert datetime to string, handling None values.
 
     Args:
-        event (Event): The event to build a document from.
+        date_obj: datetime object or None
 
     Returns:
-        str: The formatted document as a string.
+        String representation or None
     """
-    title = event.title_fr or ""
-    desc = event.description_fr or ""
-    longdesc = clean_html_content(event.longdescription_fr or "")
-    keywords = ", ".join(event.keywords_fr or [])
+    return str(date_obj) if date_obj else None
 
-    city = event.location_city or ""
-    dept = event.location_department or ""
-    region = event.location_region or ""
-    address = event.location_address or ""
 
-    date_range = event.daterange_fr or ""
-    start = event.firstdate_begin or ""
-    end = event.firstdate_end or ""
+class DocumentBuilder:
+    """Builder for converting Events to chunked LangChain Documents.
 
-    origin = event.originagenda_title or ""
-
-    text = f"""
-    Titre : {title}
-    Description : {desc}
-    Description longue : {longdesc}
-    Mots-clés : {keywords}
-    Ville : {city}
-    Adresse : {address}
-    Département : {dept}
-    Région : {region}
-    Date : {date_range}
-    Début : {start}
-    Fin : {end}
-    Agenda d'origine : {origin}
+    Encapsulates the logic for:
+    - Building rich page_content from Event data
+    - Chunking content for optimal embedding
+    - Creating metadata
     """
 
-    return normalize_whitespace(text)
+    def __init__(
+        self,
+        chunk_size: int = 500,
+        chunk_overlap: int = 50,
+    ):
+        """Initialize DocumentBuilder.
+
+        Args:
+            chunk_size: Size of text chunks for splitting
+            chunk_overlap: Overlap between chunks
+        """
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self.splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separators=["\n\n", "\n", ".", " ", ""],
+        )
+
+    def _build_content(self, event: Event) -> str:
+        """Build structured page_content from Event data.
+
+        Args:
+            event: The event to build content from
+
+        Returns:
+            Formatted page_content string
+        """
+        title = event.title_fr or ""
+        short_desc = event.description_fr or ""
+        long_desc = clean_html_content(event.longdescription_fr or "")
+        keywords = format_keywords(event.keywords_fr)
+        location_name = event.location_name or ""
+        city = event.location_city or ""
+        dept = event.location_department or ""
+        region = event.location_region or ""
+        address = event.location_address or ""
+        date_range = event.daterange_fr or ""
+        start = event.firstdate_begin or ""
+        end = event.firstdate_end or ""
+
+        page_content = f"""Titre: {title}
+
+Description: {short_desc}
+
+Détails: {long_desc}
+
+Localisation: {location_name}, {city} ({dept}), {region}
+Adresse: {address}
+
+Mots-clés: {keywords}
+
+Dates: {date_range}
+Début: {start}
+Fin: {end}"""
+
+        return normalize_whitespace(page_content)
+
+    def _build_metadata(self, event: Event) -> dict:
+        """Build metadata from Event data.
+
+        Args:
+            event: The event to extract metadata from
+
+        Returns:
+            Metadata dictionary
+        """
+        return {
+            # Identifiers
+            "uid": event.uid,
+            "slug": event.slug,
+            "canonicalurl": event.canonicalurl,
+            # Location data (for geographic filtering)
+            "location_city": event.location_city,
+            "location_department": event.location_department,
+            "location_region": event.location_region,
+            "location_address": event.location_address,
+            "location_postalcode": event.location_postalcode,
+            # Temporal data (for date filtering)
+            "firstdate_begin": _safe_str_date(event.firstdate_begin),
+            "firstdate_end": _safe_str_date(event.firstdate_end),
+            "lastdate_begin": _safe_str_date(event.lastdate_begin),
+            "lastdate_end": _safe_str_date(event.lastdate_end),
+            # Source info
+            "originagenda_title": event.originagenda_title,
+            "originagenda_uid": event.originagenda_uid,
+            # Event metadata
+            "age_min": event.age_min,
+            "age_max": event.age_max,
+        }
+
+    def build(self, event: Event) -> list[Document]:
+        """Convert Event to chunked LangChain Documents.
+
+        Args:
+            event: The event to convert
+
+        Returns:
+            List of Document objects (one per chunk)
+        """
+        page_content = self._build_content(event)
+        chunks = self.splitter.split_text(page_content)
+        metadata = self._build_metadata(event)
+
+        return [Document(page_content=chunk, metadata=metadata) for chunk in chunks]
 
 
-def chunk_event_document(event: Event):
-    """Chunk an event document into smaller pieces."""
-    doc = build_document(event)
+def event_to_langchain_document(event: Event) -> list[Document]:
+    """Convert an Event to LangChain Documents optimized for RAG with chunking.
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=100,
-        separators=["\n\n", "\n", ".", " ", ""],
-    )
-
-    return splitter.split_text(doc)
-
-
-def event_to_langchain_document(event: Event) -> Document:
-    """Convert an Event to a LangChain Document optimized for RAG.
-
-    Optimization strategy:
-    - page_content: Rich text with title, descriptions and keywords for semantic search
-    - metadata: Structured data for filtering and display
+    Convenience function that creates a DocumentBuilder and builds documents.
 
     Args:
         event (Event): The event to convert.
 
     Returns:
-        Document: LangChain Document with optimized content and metadata.
+        list[Document]: List of LangChain Documents (chunked).
     """
-    # PAGE CONTENT: Rich semantic content for embedding search
-    # Focus on title, descriptions and keywords which carry semantic meaning
-    title = event.title_fr or ""
-    short_desc = event.description_fr or ""
-    long_desc = clean_html_content(event.longdescription_fr or "")
-    keywords = event.keywords_fr or []
-
-    # Build comprehensive page_content for better semantic search
-    page_content = f"""{title}
-
-{short_desc}
-
-{long_desc}
-
-Catégories: {', '.join(keywords)}"""
-
-    page_content = normalize_whitespace(page_content)
-
-    # METADATA: Structured information for filtering and display
-    metadata = {
-        # Identifiers
-        "uid": event.uid,
-        "slug": event.slug,
-        "canonicalurl": event.canonicalurl,
-        # Location data (for geographic filtering)
-        "location_city": event.location_city,
-        "location_department": event.location_department,
-        "location_region": event.location_region,
-        "location_address": event.location_address,
-        "location_postalcode": event.location_postalcode,
-        # Temporal data (for date filtering)
-        "firstdate_begin": (
-            str(event.firstdate_begin) if event.firstdate_begin else None
-        ),
-        "firstdate_end": str(event.firstdate_end) if event.firstdate_end else None,
-        "lastdate_begin": str(event.lastdate_begin) if event.lastdate_begin else None,
-        "lastdate_end": str(event.lastdate_end) if event.lastdate_end else None,
-        # Source info
-        "originagenda_title": event.originagenda_title,
-        "originagenda_uid": event.originagenda_uid,
-        # Event metadata
-        "age_min": event.age_min,
-        "age_max": event.age_max,
-    }
-
-    return Document(page_content=page_content, metadata=metadata)
-
-
-def embed_with_retry(embedding_model, texts, retries=5, delay=1.0):
-    """Embed texts with retry logic for rate limiting."""
-    for attempt in range(retries):
-        try:
-            return embedding_model.embed_documents(texts)
-        except Exception as e:
-            if "429" in str(e):
-                time.sleep(delay * (attempt + 1))
-                continue
-            raise e
-    raise RuntimeError("Max retry reached for embeddings")
+    builder = DocumentBuilder()
+    return builder.build(event)
