@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from pydantic import BaseModel
+from typing import List, Optional
 import logging
 
 from app.core.security import verify_api_key
@@ -16,6 +17,15 @@ class QueryRequest(BaseModel):
     question: str
 
 
+class EventInfo(BaseModel):
+    """Event information from RAG context."""
+
+    title: str
+    location: str
+    start_date: str
+    url: Optional[str] = None
+
+
 class QueryResponse(BaseModel):
     """Response model for query endpoint."""
 
@@ -23,6 +33,7 @@ class QueryResponse(BaseModel):
     answer: str
     intent: str = "RAG"  # RAG or CHAT
     provider: str = "mistral"  # Embedding provider used
+    events: List[EventInfo] = []  # Source events for RAG responses
 
 
 @router.post("/ask", response_model=QueryResponse)
@@ -47,7 +58,7 @@ async def ask_question(
         embedding_provider: Which embedding provider to use
 
     Returns:
-        QueryResponse with answer, intent, and provider used
+        QueryResponse with answer, intent, provider, and source events
     """
     try:
         rag_service = request.app.state.rag_service
@@ -65,6 +76,15 @@ async def ask_question(
             answer=result["answer"],
             intent=result["intent"],
             provider=result.get("provider", embedding_provider),
+            events=[
+                EventInfo(
+                    title=event["title"],
+                    location=event["location"],
+                    start_date=event["start_date"],
+                    url=event.get("url"),
+                )
+                for event in result.get("events", [])
+            ],
         )
 
     except HTTPException:

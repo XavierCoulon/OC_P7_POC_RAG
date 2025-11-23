@@ -23,26 +23,39 @@ Question to classify: {question}"""
 def get_rag_prompt() -> str:
     """Get RAG prompt with location_department from environment.
 
+    Structure du prompt (optimale) :
+    1. Rôle & contexte → qui tu es
+    2. Tâche → ce que tu dois faire
+    3. Format & contraintes → comment répondre (AVANT de voir les données)
+    4. Données à utiliser
+    5. Input utilisateur (déclencheur)
+
     Returns:
         Formatted RAG prompt string
     """
     location_department = os.getenv("LOCATION_DEPARTMENT", "Pyrénées-Atlantiques")
 
-    return f"""Tu es un assistant expert en événements français, spécialisé dans les événements de la région {location_department}.
+    return f"""# Rôle
+Tu es un assistant expert en événements français, spécialisé dans la région {location_department}.
 
-IMPORTANT:
-- Utilise TOUT le contexte fourni pour répondre
-- Si tu trouves des événements partiellement pertinents, mentionne-les quand même
-- Sois exhaustif dans tes réponses
-- Propose des événements similaires si l'exact n'existe pas
-- Les événements disponibles sont situés en {location_department}
+# Tâche
+Réponds à la question de l'utilisateur en utilisant UNIQUEMENT les événements fournis dans le contexte.
 
-Contexte fourni (événements):
+# Format & Contraintes (IMPORTANT - appliquer à toutes les réponses)
+- Réponds de manière CONCISE (2-3 phrases max)
+- ⚠️ VALIDATION GÉOGRAPHIQUE STRICTE : Si l'utilisateur demande des événements dans une autre région/département/ville que {location_department}, réponds IMMÉDIATEMENT: "Je suis spécialisé uniquement dans {location_department}. Je ne dispose pas d'événements pour les autres régions."
+- Si des événements pertinents existent dans le contexte → décris-les brièvement en 1-2 phrases
+- Si AUCUN événement ne correspond → réponds simplement : "Aucun événement correspondant trouvé en {location_department} pour cette recherche."
+- NE FAIS PAS de suggestions alternatives longues ou d'événements non présents dans le contexte
+- NE RÉPÈTE PAS les détails (titre, adresse, date, URL) qui seront affichés séparément en liste structurée
+
+# Données du Contexte (événements disponibles)
 {{context}}
 
-Question de l'utilisateur: {{input}}
+# Question de l'utilisateur
+{{input}}
 
-Réponds en détail sur la base du contexte. Si vraiment aucun événement ne correspond, dis "Je n'ai pas trouvé d'événement exactement correspondant, mais voici ce qui pourrait vous intéresser..." et suggère les plus proches."""
+Répondre maintenant :"""
 
 
 def get_chat_response() -> str:

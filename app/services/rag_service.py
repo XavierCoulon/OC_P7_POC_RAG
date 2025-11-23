@@ -405,6 +405,38 @@ class RAGService:
         llm = self._get_llm()
         return classify_query_intent(query, llm)
 
+    def _extract_events_from_context(self, context_docs: list) -> list:
+        """Extract event information from context documents.
+
+        Args:
+            context_docs: List of LangChain Document objects from RAG context
+
+        Returns:
+            List of dictionaries with event information
+        """
+        events = []
+        seen_titles = set()  # Avoid duplicates
+
+        for doc in context_docs:
+            metadata = doc.metadata or {}
+            title = metadata.get("originagenda_title", "Événement sans titre")
+
+            # Avoid duplicate titles in results
+            if title not in seen_titles:
+                seen_titles.add(title)
+                events.append(
+                    {
+                        "title": title,
+                        "location": f"{metadata.get('location_city', 'Lieu non spécifié')} ({metadata.get('location_postalcode', 'CP')})",
+                        "start_date": metadata.get(
+                            "firstdate_begin", "Date non spécifiée"
+                        ),
+                        "url": metadata.get("canonicalurl", None),
+                    }
+                )
+
+        return events
+
     def answer_question(
         self, question: str, provider: str = "mistral"
     ) -> Dict[str, Any]:
@@ -431,6 +463,8 @@ class RAGService:
             # Classify intent with retry logic
             intent = self.classify_intent(question)
 
+            events = []  # Events used for RAG response
+
             if intent == INTENT_CHAT:
                 # Return a friendly chat response
                 logger.info(f"Chat intent detected for: '{question[:50]}...'")
@@ -451,15 +485,30 @@ class RAGService:
                         max_retries=3,
                         initial_delay=1,
                     )
+
                     if "error" in result:
                         answer = result["answer"]
                     else:
                         answer = result.get("answer", "Aucune réponse générée")
+                        # Check if geographic validation was triggered (should not return events)
+                        if "Je suis spécialisé uniquement dans" in answer:
+                            logger.info(
+                                "Geographic validation triggered - no events returned"
+                            )
+                            events = []
+                        else:
+                            # Extract context documents (source events)
+                            context = result.get("context", [])
+                            events = self._extract_events_from_context(context)
+                            logger.info(
+                                f"✓ Extracted {len(events)} source events from context"
+                            )
 
             return {
                 "status": "success",
                 "question": question,
                 "answer": answer,
+                "events": events,
                 "intent": intent,
                 "provider": provider,
             }
@@ -472,4 +521,5 @@ class RAGService:
                 "answer": f"Erreur lors du traitement: {str(e)}",
                 "intent": None,
                 "provider": provider,
+                "events": [],
             }
