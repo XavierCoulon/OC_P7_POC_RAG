@@ -35,6 +35,7 @@ class QueryResponse(BaseModel):
     intent: str = "RAG"  # RAG or CHAT
     provider: str = "mistral"  # Embedding provider used
     events: List[EventInfo] = []  # Source events for RAG responses
+    context: List[str] = []  # Raw text chunks from knowledge base used for answer
 
 
 @router.post("/ask", response_model=QueryResponse)
@@ -84,6 +85,7 @@ async def ask_question(
                 )
                 for event in result.get("events", [])
             ],
+            context=result.get("context", []),
         )
 
     except HTTPException:

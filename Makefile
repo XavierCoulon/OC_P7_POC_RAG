@@ -1,5 +1,5 @@
 # Development commands
-.PHONY: up down rebuild precommit test coverage
+.PHONY: up down rebuild precommit test coverage eval-mistral eval-huggingface
 
 # Precommit commands
 precommit:
@@ -24,3 +24,12 @@ test:
 # covergage report
 coverage:
 	pytest --cov=app --cov-report=term-missing --cov-report=html
+
+# Ragas evaluation commands
+eval-mistral:
+	@echo "🚀 Evaluating RAG with Mistral embeddings..."
+	python scripts/ragas_eval.py --provider mistral
+
+eval-huggingface:
+	@echo "🚀 Evaluating RAG with HuggingFace embeddings..."
+	python scripts/ragas_eval.py --provider huggingface

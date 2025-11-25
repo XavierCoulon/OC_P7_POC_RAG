@@ -446,6 +446,7 @@ class RAGService:
             intent = self.classify_intent(question)
 
             events = []  # Events used for RAG response
+            context = []  # Raw text chunks from knowledge base
 
             if intent == INTENT_CHAT:
                 # Return a friendly chat response
@@ -473,20 +474,27 @@ class RAGService:
                         answer = result["answer"]
                     else:
                         answer = result.get("answer", "Aucune réponse générée")
+                        # Extract context docs (raw text chunks)
+                        context_docs = result.get("context", [])
+                        context = [
+                            doc.page_content if hasattr(doc, "page_content") else str(doc) for doc in context_docs
+                        ]
+
                         # Check if model declined to answer (should not return events)
                         # Case 1: Geographic validation triggered
                         # Case 2: Truly no events found (not just "no events of that style")
                         if "Je suis spécialisé uniquement dans" in answer:
                             logger.info("Geographic validation triggered - no events returned")
                             events = []
+                            context = []
                         elif "Aucun événement correspondant trouvé" in answer and "de ce style" not in answer:
                             # Only block if truly no events, not if saying "no concerts but here are other events"
                             logger.info("No events found - no events returned")
                             events = []
+                            context = []
                         else:
                             # Extract context documents (source events)
-                            context = result.get("context", [])
-                            events = self._extract_events_from_context(context)
+                            events = self._extract_events_from_context(context_docs)
                             logger.info(f"✓ Extracted {len(events)} source events from context")
 
             return {
@@ -494,6 +502,7 @@ class RAGService:
                 "question": question,
                 "answer": answer,
                 "events": events,
+                "context": context,
                 "intent": intent,
                 "provider": provider,
             }
@@ -507,4 +516,5 @@ class RAGService:
                 "intent": None,
                 "provider": provider,
                 "events": [],
+                "context": [],
             }
