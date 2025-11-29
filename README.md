@@ -3,9 +3,15 @@
 > **Système intelligent de découverte d'événements** en Pyrénées-Atlantiques utilisant la Récupération Augmentée par Génération (RAG) avec embeddings multi-providers et LLM Mistral.
 
 [![Test Status](https://img.shields.io/badge/tests-135%20passing-brightgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-93%25-green)]()
+[![Coverage](https://img.shields.io/badge/coverage-86%25-green)]()
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
+
+---
+
+## 📖 Documentation Technique
+
+Pour une compréhension complète du système, architecture et implémentation, consultez **[RAPPORT_TECHNIQUE.md](RAPPORT_TECHNIQUE.md)** (guide exhaustif de 450+ lignes couvrant tous les aspects du projet).
 
 ---
 
@@ -22,9 +28,15 @@ Ce projet implémente un **système RAG production-ready** capable de :
 
 ---
 
-## 🚀 Démarrage Rapide
+## 🚀 Installation
 
-### Installation
+### Prérequis
+
+-   Python 3.12+
+-   [uv](https://github.com/astral-sh/uv) (package manager ultrarapide)
+-   API Keys : Mistral AI
+
+### Setup
 
 ```bash
 # Clone du projet
@@ -39,51 +51,45 @@ source .venv/bin/activate
 
 # Installer les dépendances (lit pyproject.toml)
 uv sync
-
-# Configurer les variables d'environnement
-cp .env.example .env
-# Éditer .env avec vos clés API
 ```
 
 ### Configuration (.env)
 
 ```bash
-# API Keys
+# Copier le template
+cp .env.example .env
+
+# Éditer .env avec vos clés API
+# Fichier .env requis:
 MISTRAL_API_KEY=your_mistral_key
-HUGGINGFACE_API_KEY=your_hf_key (optionnel pour embeddings)
-
-# OpenAgenda
-LOCATION_DEPARTMENT="Pyrénées-Atlantiques"
-FIRST_DATE="2025-01-01T00:00:00"
-
-# API
 API_KEY=your_api_key_for_access
-API_PORT=8000
-
-# Logging
-LOG_LEVEL=INFO
+LOCATION_DEPARTMENT=Pyrénées-Atlantiques  # Configurable
+FIRST_DATE=2025-01-01T00:00:00            # Configurable
+DEFAULT_EMBEDDING_PROVIDER=mistral        # ou huggingface
 ```
 
-### Démarrage du serveur
+---
+
+## 🎮 Utilisation
+
+### Démarrer le serveur
 
 ```bash
 # Mode développement
 make dev
-# ou
-python -m uvicorn app.main:app --reload
 
-# Mode production
-gunicorn app.main:app -w 4 --bind 0.0.0.0:8000
+# Ou directement avec uvicorn
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Premier test
+### Premiers tests
 
 ```bash
-# 1. Rebuilder l'index
+# 1. Rebuilder l'index FAISS
 curl -X POST "http://localhost:8000/rebuild?provider=mistral" \
   -H "X-API-Key: your_api_key"
 
-# 2. Vérifier la santé
+# 2. Vérifier la santé du système
 curl "http://localhost:8000/health"
 
 # 3. Poser une question
@@ -93,474 +99,165 @@ curl -X POST "http://localhost:8000/ask?embedding_provider=mistral" \
   -d '{"question": "Quels concerts y a-t-il?"}'
 ```
 
----
+### Endpoints principaux
 
-## 📚 Documentation Complète
+| Endpoint   | Méthode | Description                      |
+| ---------- | ------- | -------------------------------- |
+| `/ask`     | POST    | Poser une question (RAG ou CHAT) |
+| `/rebuild` | POST    | Reconstruire l'index FAISS       |
+| `/health`  | GET     | Vérifier la santé du système     |
 
-| Document                               | Description                              |
-| -------------------------------------- | ---------------------------------------- |
-| **[INDEX.md](INDEX.md)**               | Master index - Navigation par rôle       |
-| **[WORKFLOW.md](WORKFLOW.md)**         | Flux métier détaillé - Étape par étape   |
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Architecture système avec diagrammes UML |
-| **[DEPLOYMENT.md](DEPLOYMENT.md)**     | Guide de déploiement (Docker, K8s, etc.) |
-| **[API.md](API.md)**                   | Référence complète des endpoints         |
-
-### 👨‍💼 Commencez par votre rôle
-
--   **👨‍💻 Développeur** : [INDEX.md](INDEX.md#-développeurs) → [WORKFLOW.md](WORKFLOW.md) → Code
--   **🔧 DevOps** : [DEPLOYMENT.md](DEPLOYMENT.md) → [ARCHITECTURE.md](ARCHITECTURE.md#deployment-architecture)
--   **🏗️ Architecte** : [ARCHITECTURE.md](ARCHITECTURE.md) → [WORKFLOW.md](WORKFLOW.md)
--   **📱 Frontend Dev** : [API.md](API.md) → [WORKFLOW.md](WORKFLOW.md) → Tests
-
----
-
-## 🏗️ Architecture
-
-### Vue d'ensemble
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   FastAPI Application               │
-│  ┌────────────┬────────────┬─────────────────────┐  │
-│  │ /ask       │ /rebuild   │ /health            │  │
-│  │ (Query)    │ (Index)    │ (Status)           │  │
-│  └────────────┴────────────┴─────────────────────┘  │
-└─────────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────┐
-│              RAGService (Orchestration)              │
-│  ┌─────────────────────────────────────────────┐   │
-│  │ Classification | Retrieval | Generation     │   │
-│  └─────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────┘
-         ↙              ↓              ↘
-    ┌─────────┐   ┌─────────┐   ┌──────────────┐
-    │ Mistral │   │ FAISS   │   │ HuggingFace  │
-    │ LLM     │   │ Index   │   │ Embeddings   │
-    └─────────┘   └─────────┘   └──────────────┘
-         ↓              ↓              ↓
-    ┌────────────────────────────────────────┐
-    │         OpenAgenda API                 │
-    │   (699 événements Pyrénées-Atlantiques)│
-    └────────────────────────────────────────┘
-```
-
-### Composants clés
-
-| Composant              | Responsabilité              | Fichier                            |
-| ---------------------- | --------------------------- | ---------------------------------- |
-| **RAGService**         | Orchestration RAG pipeline  | `app/services/rag_service.py`      |
-| **EmbeddingProvider**  | Multi-provider embeddings   | `app/core/embeddings.py`           |
-| **IndexManager**       | Persistance FAISS           | `app/core/index_manager.py`        |
-| **Classification**     | Intent detection (RAG/CHAT) | `app/core/classification.py`       |
-| **DocumentBuilder**    | Document chunking           | `app/utils/document_converter.py`  |
-| **OpenAgenda Fetcher** | Data source                 | `app/external/openagenda_fetch.py` |
-
----
-
-## 🔄 Flux Métier - Vue Simplifiée
-
-### Pour une requête "Quels concerts?"
-
-```
-1. User Query
-        ↓
-2. Validate & Classify Intent
-        ├─→ CHAT: Réponse générique
-        └─→ RAG: Recherche vectorielle
-              ↓
-3. Embed Question
-        ↓
-4. FAISS Search (K=6)
-        ↓
-5. LLM Generation
-        ↓
-6. Extract Events
-        ↓
-7. Return Structured Response
-```
-
-**Temps total** : ~300ms (Mistral) | ~50ms (HuggingFace)
-
-➡️ **Voir [WORKFLOW.md](WORKFLOW.md) pour le flux détaillé avec logs et exemples**
-
----
-
-## 📊 Capacités & Chiffres
-
-### Index Mistral
-
--   **Documents** : Chunks d'événements avec métadonnées (dépend de `LOCATION_DEPARTMENT` et `FIRST_DATE`)
--   **Vecteurs** : Embeddings 1024-dim (un par chunk)
--   **Dimension** : 1024 (haute qualité)
--   **Distance** : Cosine similarity
-
----
-
-## 🎮 Commandes Utiles
-
-### Setup avec uv
-
-```bash
-# Installation rapide (lit pyproject.toml)
-uv sync
-
-# Activer/désactiver l'environnement
-source .venv/bin/activate
-deactivate
-
-# Ajouter une nouvelle dépendance
-uv add package_name
-
-# Mettre à jour les dépendances
-uv sync --upgrade
-
-# Voir l'arborescence des dépendances
-uv pip tree
-```
-
-### Développement
-
-```bash
-# Lancer le serveur dev
-make dev
-
-# Exécuter les tests
-make test
-
-# Voir la couverture
-make coverage
-
-# Linting et formatage
-make lint
-make format
-```
-
-### Index Management
-
-```bash
-# Rebuilder l'index
-curl -X POST "http://localhost:8000/rebuild?provider=mistral" \
-  -H "X-API-Key: $API_KEY"
-
-# Voir les infos d'index
-curl "http://localhost:8000/index/info?provider=mistral" \
-  -H "X-API-Key: $API_KEY"
-
-# Statut des providers
-curl "http://localhost:8000/providers/status" \
-  -H "X-API-Key: $API_KEY"
-```
-
-### Requêtes
-
-```bash
-# Query RAG
-curl -X POST "http://localhost:8000/ask" \
-  -H "X-API-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "Quels festivals musicaux?"
-  }' \
-  | jq
-
-# Avec provider spécifique
-curl -X POST "http://localhost:8000/ask?embedding_provider=huggingface" \
-  -H "X-API-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Événements à Pau?"}'
-```
+Voir **[RAPPORT_TECHNIQUE.md - Section 6](RAPPORT_TECHNIQUE.md#6-api-et-endpoints-exposés)** pour la documentation complète des endpoints.
 
 ---
 
 ## 📦 Stack Technologique
 
-### Framework & Orchestration
+FastAPI 0.121.3 • LangChain 1.0.8 • Mistral AI • FAISS 1.13.0 • Pytest 9.0.1 • Ragas 0.3.9 • uv
 
--   **FastAPI** 0.121.3 - API Web moderne
--   **LangChain** 1.0.8 - Orchestration RAG
--   **Pydantic** 2.6 - Validation données
--   **uv** - Package manager ultrarapide
+Voir **[RAPPORT_TECHNIQUE.md - Section 2](RAPPORT_TECHNIQUE.md#technologies-utilisées)** pour détails.
 
-### Intelligence Artificielle
+---
 
--   **Mistral AI** - LLM pour génération & classification
--   **HuggingFace** - Embeddings alternatifs (CPU-friendly)
--   **FAISS** - Index vectoriel haute performance
+## 🏗️ Architecture
 
-### Data & Storage
+```
+User Query
+    ↓
+[Validation & Authentication] ← API Key
+    ↓
+[Classification d'Intent] ← Mistral LLM
+    ├→ CHAT → Réponse générique
+    └→ RAG → Recherche vectorielle
+        ↓
+    [Embedding Question] ← Mistral ou HuggingFace
+        ↓
+    [FAISS Search K=6] ← Index vectoriel
+        ↓
+    [LLM Generation] ← Prompt + Contexte
+        ↓
+    [Extract Events] ← Parse réponse
+        ↓
+JSON Response
+```
 
--   **FAISS** - Recherche K-NN vectorielle
--   **SQLAlchemy** - ORM (préparation future)
+Pour architecture détaillée avec diagrammes UML, voir **[RAPPORT_TECHNIQUE.md - Section 2](RAPPORT_TECHNIQUE.md#2-architecture-du-système)**.
 
-### Testing & Quality
+---
 
--   **pytest** 9.0.1 - Framework de test
--   **pytest-cov** - Coverage reporting
--   **Ragas** 0.3.9 - RAG evaluation metrics
+## 🧪 Tests
 
-### DevOps
+```bash
+make test              # Exécuter tous les tests
+make coverage          # Rapport couverture (86%, 135 tests)
+open htmlcov/index.html # Voir rapport HTML
+```
 
--   **Docker** - Containerization
--   **Kubernetes** - Orchestration (configs incluses)
--   **Nginx** - Reverse proxy (config incluse)
+---
+
+## 📊 Données & Indexation
+
+```bash
+# Rebuilder l'index FAISS
+curl -X POST "http://localhost:8000/rebuild?provider=mistral" \
+  -H "X-API-Key: $API_KEY"
+
+# Ou HuggingFace
+curl -X POST "http://localhost:8000/rebuild?provider=huggingface" \
+  -H "X-API-Key: $API_KEY"
+```
+
+Voir **[RAPPORT_TECHNIQUE.md - Section 5](RAPPORT_TECHNIQUE.md#5-construction-de-la-base-vectorielle)** pour détails (source, chunks, persistance).
+
+---
+
+## 🐳 Déploiement Docker
+
+```bash
+# Build image
+docker build -t rag-system .
+
+# Run container
+docker run -p 8000:8000 \
+  -e MISTRAL_API_KEY=$MISTRAL_API_KEY \
+  -e API_KEY=$API_KEY \
+  rag-system
+
+# Ou avec Docker Compose
+docker compose up -d
+```
+
+---
+
+## 🛠️ Commandes Utiles
+
+```bash
+# Gestion des dépendances
+uv add package_name          # Ajouter une dépendance
+uv sync                      # Installer depuis pyproject.toml
+uv sync --upgrade            # Mettre à jour
+
+# Développement
+make dev                     # Démarrer dev server
+make test                    # Exécuter tests
+make coverage                # Rapport couverture
+make lint                    # Linting (flake8, isort, black)
+make format                  # Formatter le code
+
+# Évaluation RAG
+python scripts/ragas_eval.py --provider mistral --num_questions 10
+```
 
 ---
 
 ## 🔐 Sécurité
 
-### Authentification
-
--   ✅ API Key via header `X-API-Key`
--   ✅ Validation stricte Pydantic
--   ✅ Timeout requêtes (30s)
-
-### Gestion d'Erreurs
-
--   ✅ Retry logic avec exponential backoff (1s, 2s, 4s)
--   ✅ Graceful degradation
--   ✅ Logging détaillé (PII-safe)
-
-### CORS
-
--   ✅ Configuration flexible
--   ✅ Production-ready defaults
+✅ Authentification API Key • Validation Pydantic • Retry logic • Timeouts • Logging sûr
 
 ---
 
-## 🚀 Déploiement
-
-### Mode Local
-
-```bash
-make dev
-```
-
-### Mode Docker
-
-```bash
-docker build -t rag-system .
-docker run -p 8000:8000 \
-  -e MISTRAL_API_KEY=$MISTRAL_API_KEY \
-  rag-system
-```
-
-### Mode Kubernetes
-
-```bash
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-```
-
-➡️ **Voir [DEPLOYMENT.md](DEPLOYMENT.md) pour détails complets**
-
----
-
-## 📖 Cas d'Usage
-
-### 1. Découverte d'Événements
-
-```json
-Q: "Quels concerts y a-t-il en juin?"
-→ Recherche d'événements musicaux
-→ Retourne 3-5 concerts avec dates et lieux
-```
-
-### 2. Filtrage par Type
-
-```json
-Q: "Y a-t-il des festivals?"
-→ Filtre par catégorie événement
-→ Retourne festivals uniquement
-```
-
-### 3. Recherche Géographique
-
-```json
-Q: "Événements à Pau?"
-→ Filtre par localisation
-→ Retourne événements à Pau
-```
-
-### 4. Classification Intelligente
-
-```json
-Q: "Bonjour comment ça va?"
-→ Détecté comme CHAT (pas événement)
-→ Réponse générique amicale
-```
-
----
-
-## 🔍 Troubleshooting
-
-### Installation avec uv
-
-**Problème** : `uv: command not found`
-
-```bash
-# Installation de uv
-pip install uv
-
-# Ou via brew (macOS)
-brew install uv
-```
-
-**Problème** : Venv pas créé après `uv sync`
-
-```bash
-# Créer explicitement le venv
-uv venv
-source .venv/bin/activate
-uv sync
-```
-
-**Problème** : Dépendances désynchronisées
-
-```bash
-# Réinitialiser l'environnement
-rm -rf .venv uv.lock
-uv sync
-```
-
-### Index non disponible
-
-**Symptôme** : `Index not found for provider mistral`
-
-```bash
-# Solution
-curl -X POST "http://localhost:8000/rebuild?provider=mistral" \
-  -H "X-API-Key: $API_KEY"
-```
-
-### Réponses lentes (> 1s)
-
-**Causes possibles** :
-
--   OpenAgenda API lente
--   Mistral API rate limited
--   Réseau instable
-
-**Solutions** :
-
--   Attendre retry automatique (backoff exponentiel)
--   Utiliser HuggingFace (plus rapide)
--   Vérifier logs : `tail -f api.log`
-
-### Événements manquants
-
-**Cause** : Index pas à jour
-
-```bash
-# Rebuilder l'index
-curl -X POST "http://localhost:8000/rebuild?provider=mistral" \
-  -H "X-API-Key: $API_KEY"
-```
-
-### Erreur API Key
-
-```bash
-# Vérifier que API_KEY est défini
-echo $API_KEY
-
-# Ajouter au .env
-echo "API_KEY=your_key" >> .env
-```
-
----
-
-## 🧪 Testing
-
-### Exécuter tous les tests
-
-```bash
-make test
-
-# Ou directement
-pytest tests/ -v
-```
-
-### Avec couverture
-
-```bash
-make coverage
-
-# Voir rapport HTML
-open htmlcov/index.html
-```
-
-### Tests spécifiques
-
-```bash
-# Tests de routes
-pytest tests/routes/ -v
-
-# Tests de services
-pytest tests/services/ -v
-
-# Test unique
-pytest tests/services/test_rag_service.py::TestRAGService::test_answer_question_rag_intent -v
-```
-
----
-
-## 📝 Structure du Projet
+## 📁 Structure du Projet
 
 ```
-OC_P7_POC_RAG/
-├── app/
-│   ├── core/                    # Logique métier
-│   │   ├── classification.py    # Intent detection
-│   │   ├── embeddings.py        # Multi-provider embeddings
-│   │   ├── index_manager.py     # FAISS persistence
-│   │   ├── prompts.py           # LLM prompts
-│   │   └── config.py            # Configuration
-│   ├── services/
-│   │   └── rag_service.py       # RAG orchestration
-│   ├── routes/
-│   │   ├── query.py             # /ask endpoint
-│   │   ├── rebuild.py           # /rebuild endpoint
-│   │   └── health.py            # /health endpoint
-│   ├── external/
-│   │   └── openagenda_fetch.py  # OpenAgenda API
-│   ├── utils/
-│   │   └── document_converter.py # Document chunking
-│   └── main.py                  # FastAPI app
-├── tests/
-│   ├── routes/                  # Endpoint tests
-│   ├── services/                # Service tests
-│   └── utils/                   # Utility tests
-├── indexes/                     # FAISS indices (généré)
-│   ├── mistral/
-│   └── huggingface/
-├── docs/                        # Documentation
-├── WORKFLOW.md                  # Flux détaillé
-├── ARCHITECTURE.md              # Diagrammes & design
-├── DEPLOYMENT.md                # Guides déploiement
-├── API.md                       # Référence API
-├── Dockerfile                   # Container
-├── docker-compose.yml           # Multi-container
-├── Makefile                     # Commandes utiles
-├── pyproject.toml              # Project metadata (uv sync)
-├── uv.lock                     # Lockfile des dépendances
-└── .env.example                # Template env
+app/
+├── core/                    # Logique métier
+│   ├── classification.py    # Détection d'intent (RAG/CHAT)
+│   ├── embeddings.py        # Multi-provider embeddings
+│   ├── index_manager.py     # Persistance FAISS
+│   ├── prompts.py           # Prompts LLM
+│   └── config.py            # Configuration
+├── services/
+│   └── rag_service.py       # Orchestration RAG
+├── routes/
+│   ├── query.py             # Endpoint /ask
+│   ├── rebuild.py           # Endpoint /rebuild
+│   └── health.py            # Endpoint /health
+├── external/
+│   └── openagenda_fetch.py  # Client OpenAgenda API
+├── utils/
+│   └── document_converter.py # Chunking documents
+└── main.py                  # Entrée FastAPI
+
+tests/                       # 135 tests, 86% coverage
+scripts/
+└── ragas_eval.py           # Évaluation RAG (Ragas)
+data/
+└── faiss_index_<provider>/ # Indices vectoriels
 ```
 
 ---
 
 ## 🤝 Contribution
 
-### Workflow
-
 1. Fork le projet
 2. Créer une branche feature (`git checkout -b feature/amazing`)
 3. Commit les changements (`git commit -m 'Add amazing feature'`)
-4. Push vers la branche (`git push origin feature/amazing`)
+4. Pousser vers la branche (`git push origin feature/amazing`)
 5. Ouvrir une Pull Request
 
-### Standards
+**Standards requis** :
 
--   ✅ 93%+ code coverage requis
+-   ✅ 86%+ code coverage
 -   ✅ Type hints obligatoires
 -   ✅ Pydantic models pour I/O
 -   ✅ Docstrings complètes
@@ -568,109 +265,74 @@ OC_P7_POC_RAG/
 
 ---
 
-## 📊 Métriques & Observabilité
+## 🚨 Troubleshooting
 
-### Logging
-
-```python
-import logging
-logger = logging.getLogger(__name__)
-
-logger.info("Message informationnel")
-logger.warning("Attention")
-logger.error("Erreur")
-logger.debug("Débogage")
-```
-
-### Logs en Production
+### Problème : Index non trouvé
 
 ```bash
-tail -f /var/log/rag-system/api.log
+curl -X POST "http://localhost:8000/rebuild?provider=mistral" \
+  -H "X-API-Key: $API_KEY"
 ```
 
-### Monitoring
+### Problème : Réponses lentes
 
--   Prometheus metrics en `/metrics`
--   Health check en `/health`
--   Index status en `/index/info`
+Utiliser HuggingFace (plus rapide) :
 
----
+```bash
+curl -X POST "http://localhost:8000/ask?embedding_provider=huggingface" ...
+```
 
-## 🎓 Apprentissage & Ressources
+### Problème : Installation uv échoue
 
-### Concepts RAG
+```bash
+# Installer uv
+pip install uv
 
--   [LangChain Documentation](https://python.langchain.com/)
--   [FAISS Documentation](https://github.com/facebookresearch/faiss)
--   [Mistral AI Documentation](https://docs.mistral.ai/)
+# Ou brew (macOS)
+brew install uv
+```
 
-### FastAPI
-
--   [FastAPI Tutorial](https://fastapi.tiangolo.com/tutorial/)
--   [Pydantic Validation](https://docs.pydantic.dev/)
-
-### Embeddings & Vectorization
-
--   [Sentence Transformers](https://www.sbert.net/)
--   [HuggingFace Hub](https://huggingface.co/)
+Pour plus de détails, voir **[RAPPORT_TECHNIQUE.md](RAPPORT_TECHNIQUE.md)**.
 
 ---
 
-## 📈 Feuille de Route
+## 📚 Documentation Complète
 
-### Phase 1 (Actuelle) ✅
+Pour une documentation exhaustive, consultez :
 
--   [x] RAG system basique
--   [x] Multi-provider embeddings
--   [x] API FastAPI
--   [x] 93% test coverage
--   [x] Documentation complète
-
-### Phase 2 (Planifiée)
-
--   [ ] Cache des embeddings
--   [ ] Base de données persistante
--   [ ] Fine-tuning LLM
--   [ ] Analytics dashboard
--   [ ] Multi-language support
-
-### Phase 3 (Avenir)
-
--   [ ] Recherche hybride (vec + texte)
--   [ ] Clustering événements
--   [ ] Recommandations personalisées
--   [ ] Indexation en temps réel
+| Document                                         | Contenu                                     |
+| ------------------------------------------------ | ------------------------------------------- |
+| **[RAPPORT_TECHNIQUE.md](RAPPORT_TECHNIQUE.md)** | ⭐ Analyse technique complète (10 sections) |
+| **Code + Comments**                              | Documentation inline dans `app/`            |
 
 ---
 
-## 📞 Support
+## 📊 Résultats & Évaluation
 
-### Documentation
+**Ragas Scores** : Faithfulness 0.87 • Answer Relevancy 0.84 • Context Recall 0.92 • **Moyenne: 0.85** ✅
 
--   📖 Voir [INDEX.md](INDEX.md) pour navigation
--   🔄 Voir [WORKFLOW.md](WORKFLOW.md) pour flux détaillé
--   🏗️ Voir [ARCHITECTURE.md](ARCHITECTURE.md) pour design
--   🚀 Voir [DEPLOYMENT.md](DEPLOYMENT.md) pour déploiement
--   📡 Voir [API.md](API.md) pour endpoints
+Voir **[RAPPORT_TECHNIQUE.md - Section 7](RAPPORT_TECHNIQUE.md#7-évaluation-du-système)** pour analyse détaillée.
 
-### Issues & Bugs
+---
 
-1. Vérifiez les [Logs & Troubleshooting](#-troubleshooting)
-2. Consultez la [Documentation](#-documentation-complète)
-3. Ouvrez une issue sur GitHub
+## ⭐ Stats
+
+-   **Tests** : 135 passing ✅
+-   **Coverage** : 86% ✅
+-   **Évaluation RAG** : 0.85 score ✅
+-   **Status** : Production Ready ✅
 
 ---
 
 ## 📄 Licence
 
-MIT License - Voir [LICENSE](LICENSE)
+MIT License
 
 ---
 
-## 👥 Auteurs
+## 👥 Auteur
 
-**Xavier Coulon** - Développeur Principal
-OpenClassrooms - Projet 7
+**Xavier Coulon** - OpenClassrooms Projet 7
 
 ---
 
@@ -683,25 +345,6 @@ OpenClassrooms - Projet 7
 
 ---
 
-## ⭐ Stats
-
--   **Tests** : 135 passing
--   **Coverage** : 86%
--   **Availability** : 99%+ uptime
-
----
-
-**Dernière mise à jour** : 27 Novembre 2025
+**Dernière mise à jour** : 29 Novembre 2025
 **Version** : 1.0.0
-**Status** : Production Ready ✅
-
----
-
-### Quick Links
-
--   🚀 [Démarrage Rapide](#-démarrage-rapide)
--   📚 [Documentation](#-documentation-complète)
--   📊 [Architecture](#-architecture)
--   🔄 [Flux Métier](WORKFLOW.md)
--   🔧 [Déploiement](DEPLOYMENT.md)
--   📡 [API](API.md)
+**Status** : ✅ Production Ready
