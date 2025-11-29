@@ -60,12 +60,59 @@ class QueryResponse(BaseModel):
     )
     provider: str = Field("mistral", description="Fournisseur d'embeddings utilisé pour le RAG", examples=["mistral"])
     events: List[EventInfo] = Field(
-        default_factory=list, description="Liste des événements sources extraits du contexte RAG", examples=[[]]
+        default_factory=list,
+        description="Liste des événements sources extraits du contexte RAG",
+        examples=[
+            [
+                {
+                    "title": "Festival Peaux à Pau",
+                    "location": "Pau (Pyrénées-Atlantiques)",
+                    "start_date": "2025-06-22 08:00:00+00:00",
+                    "url": (
+                        "https://openagenda.com/eteculturel-2025-nouvelle-aquitaine/"
+                        "events/festival-peaux-a-pau-9391103"
+                    ),
+                },
+                {
+                    "title": "Visite guidée : le pôle culturel du Foirail",
+                    "location": "Pau (Pyrénées-Atlantiques)",
+                    "start_date": "2025-09-20 07:00:00+00:00",
+                    "url": (
+                        "https://openagenda.com/jep-2025-nouvelle-aquitaine/"
+                        "events/visite-guidee-le-pole-culturel-du-foirail"
+                    ),
+                },
+            ]
+        ],
     )
     context: List[str] = Field(
         default_factory=list,
-        description="Fragments de texte brut de la base de connaissances utilisés pour générer la réponse",
-        examples=[[]],
+        description="Fragments de texte brut de la base de connaissances utilisés pour générer la réponse",  # noqa: E501
+        examples=[
+            [
+                (
+                    "Titre: Festival Peaux à Pau Lieu: Pau 64000, Place récaborde, "
+                    "Pau (64000), Pyrénées-Atlantiques Dates (Texte): 22 - 29 juin "
+                    "Dates (ISO): Début: 2025-06-22 08:00:00+00:00 / "
+                    "Fin: 2025-06-29 21:30:00+00:00 Description: "
+                    "Le festival Peaux à Pau est une biennale culturelle dédiée à la "
+                    "musique, mettant particulièrement l'accent sur les percussions, "
+                    "un instrument fédérateur par excellence. Nous proposons une "
+                    "riche et à … Détails: Le festival Peaux à Pau est une biennale "
+                    "culturelle dédiée à la musique, mettant particulièrement l'accent "
+                    "sur les percussions, un instrument fédérateur par excellence. "
+                    "Nous proposons une programmation riche et éclectique qui vise à "
+                    "rassembler des artistes de divers horizons : internationaux, "
+                    "locaux, étudiants, élèves, musiciens amateurs mais aussi des "
+                    "jeunes, des seniors et des habitants Notre objectif est de faire "
+                    "découvrir la musique sous toutes ses formes, en offrant des "
+                    "ateliers, des stages et des master-class qui sensibilisent le "
+                    "public à la richesse culturelle du monde. Le festival Peaux à "
+                    "Pau se positionne comme un véritable lieu de rencontre et "
+                    "d'échange à travers l'art et la culture"
+                )
+            ]
+        ],
     )
 
 
