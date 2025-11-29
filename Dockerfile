@@ -2,9 +2,14 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Set HuggingFace cache directory to a persistent location
+# Build arguments
+ARG HUGGINGFACE_MODEL_NAME
+
+# Environment variables
 ENV HF_HOME=/app/data/hf_cache
 ENV PYTHONUNBUFFERED=1
+ENV TOKENIZERS_PARALLELISM=false
+ENV HUGGINGFACE_MODEL_NAME=${HUGGINGFACE_MODEL_NAME}
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -25,7 +30,7 @@ RUN uv sync --frozen
 # This ensures the model is cached in the image
 RUN mkdir -p /app/data/hf_cache && \
     python -c "from langchain_huggingface import HuggingFaceEmbeddings; \
-    HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2', encode_kwargs={'normalize_embeddings': True})" || true
+    HuggingFaceEmbeddings(model_name=\"${HUGGINGFACE_MODEL_NAME}\", encode_kwargs={'normalize_embeddings': True})" || true
 
 # Activate the venv in PATH
 ENV PATH="/app/.venv/bin:$PATH"

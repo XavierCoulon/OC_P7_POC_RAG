@@ -1,5 +1,8 @@
 # Development commands
-.PHONY: up down rebuild precommit test coverage eval-mistral eval-huggingface
+.PHONY: up down rebuild precommit test coverage eval-mistral eval-huggingface rebuild-index rebuild-index-mistral rebuild-index-huggingface
+
+# Load .env file
+include .env
 
 # Precommit commands
 precommit:
@@ -33,3 +36,25 @@ eval-mistral:
 eval-huggingface:
 	@echo "🚀 Evaluating RAG with HuggingFace embeddings..."
 	python scripts/ragas_eval.py --provider huggingface
+
+# Rebuild index commands (requires API running)
+rebuild-index-mistral:
+	@echo "🔄 Rebuilding index with Mistral embeddings..."
+	@API_KEY_CLEAN=$$(echo $(API_KEY) | tr -d "'"); \
+	curl -X POST http://localhost:8000/rebuild?provider=mistral \
+		-H "X-API-Key: $$API_KEY_CLEAN" \
+		-H "Content-Type: application/json" \
+		2>/dev/null | python -m json.tool
+	@echo "✅ Index rebuild complete"
+
+rebuild-index-huggingface:
+	@echo "🔄 Rebuilding index with HuggingFace embeddings..."
+	@API_KEY_CLEAN=$$(echo $(API_KEY) | tr -d "'"); \
+	curl -X POST http://localhost:8000/rebuild?provider=huggingface \
+		-H "X-API-Key: $$API_KEY_CLEAN" \
+		-H "Content-Type: application/json" \
+		2>/dev/null | python -m json.tool
+	@echo "✅ Index rebuild complete"
+
+rebuild-index: rebuild-index-mistral
+	@echo "Index rebuild done (Mistral)"

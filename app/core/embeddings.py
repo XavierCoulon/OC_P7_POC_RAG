@@ -77,11 +77,11 @@ class MistralEmbeddingProvider(EmbeddingProvider):
 class HuggingFaceEmbeddingProvider(EmbeddingProvider):
     """HuggingFace embedding provider (local embeddings)."""
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = "paraphrase-multilingual-MiniLM-L12-v2"):
         """Initialize HuggingFace embedding provider.
 
         Args:
-            model_name: HuggingFace model name (default: all-MiniLM-L6-v2 for speed/quality balance)
+            model_name: HuggingFace model name (default: paraphrase-multilingual-MiniLM-L12-v2 for multilingual support)
         """
         self.model_name = model_name
         self._embeddings: Optional[HuggingFaceEmbeddings] = None
@@ -131,7 +131,7 @@ def create_embedding_provider(
         return MistralEmbeddingProvider(api_key)
 
     elif provider_name.lower() == "huggingface":
-        return HuggingFaceEmbeddingProvider(model_name or "all-MiniLM-L6-v2")
+        return HuggingFaceEmbeddingProvider(model_name or "paraphrase-multilingual-MiniLM-L12-v2")
 
     else:
         raise ValueError(f"Unknown embedding provider: {provider_name}. Choose from: 'mistral', 'huggingface'")

@@ -8,10 +8,10 @@ from langchain_core.documents import Document
 from app.external.openagenda_fetch import Event
 from app.utils.document_converter import (
     DocumentBuilder,
-    _safe_str_date,
     clean_html_content,
     event_to_langchain_document,
     format_keywords,
+    get_iso_date,
     normalize_whitespace,
 )
 
@@ -127,23 +127,23 @@ class TestNormalizeWhitespace:
 
 
 class TestSafeStrDate:
-    """Tests for _safe_str_date function."""
+    """Tests for get_iso_date function."""
 
-    def test_safe_str_date_with_datetime(self):
+    def testget_iso_date_with_datetime(self):
         """Test converting datetime to string."""
         date = datetime(2025, 1, 15)
-        result = _safe_str_date(date)
+        result = get_iso_date(date)
         assert result is not None
         assert "2025" in result and "01" in result and "15" in result
 
-    def test_safe_str_date_with_none(self):
-        """Test converting None to string."""
-        result = _safe_str_date(None)
-        assert result is None
+    def testget_iso_date_with_none(self):
+        """Test converting None to empty string."""
+        result = get_iso_date(None)
+        assert result == ""
 
-    def test_safe_str_date_with_string(self):
+    def testget_iso_date_with_string(self):
         """Test converting string (should work as it's converted to string)."""
-        result = _safe_str_date("2025-01-15")
+        result = get_iso_date("2025-01-15")
         assert result == "2025-01-15"
 
 
@@ -172,6 +172,7 @@ class TestDocumentBuilder:
             firstdate_end=datetime(2025, 1, 17),
             lastdate_begin=None,
             lastdate_end=None,
+            conditions_fr="Gratuit",
             originagenda_title="Agenda Test",
             originagenda_uid="agenda-123",
             age_min=0,

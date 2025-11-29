@@ -3,6 +3,8 @@ services:
         build:
             context: .
             dockerfile: Dockerfile
+            args:
+                - HUGGINGFACE_MODEL_NAME=${HUGGINGFACE_MODEL_NAME}
         container_name: rag-api
         ports:
             - "8000:8000"

@@ -25,7 +25,7 @@ class Settings:
 
     # Embedding settings
     default_embedding_provider: str = os.getenv("DEFAULT_EMBEDDING_PROVIDER", "mistral")
-    huggingface_model_name: str = os.getenv("HUGGINGFACE_MODEL_NAME", "all-MiniLM-L6-v2")
+    huggingface_model_name: str = os.getenv("HUGGINGFACE_MODEL_NAME", "paraphrase-multilingual-MiniLM-L12-v2")
 
     # Data paths
     data_dir: Path = Path(os.getenv("DATA_DIR", "data"))

@@ -3,18 +3,24 @@
 import os
 
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router = APIRouter(tags=["health"])
 
 
 class HealthResponse(BaseModel):
-    """Health check response model."""
+    """Modèle de réponse pour le contrôle de santé."""
 
-    status: str
-    message: str
-    location_department: str
-    first_date: str
+    status: str = Field(..., description="Statut de santé de l'API", examples=["healthy"])
+    message: str = Field(..., description="Message de statut", examples=["API en cours d'exécution"])
+    location_department: str = Field(
+        ...,
+        description="Département de localisation OpenAgenda configuré pour cette instance",
+        examples=["Pyrénées-Atlantiques"],
+    )
+    first_date: str = Field(
+        ..., description="Date de première récupération des événements (format ISO)", examples=["2025-01-01T00:00:00"]
+    )
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -28,6 +34,6 @@ async def health_check():
     return HealthResponse(
         status="healthy",
         message="API is running",
-        location_department=os.getenv("LOCATION_DEPARTMENT", "Pyrénées-Atlantiques"),
-        first_date=os.getenv("FIRST_DATE", "2025-01-01T00:00:00"),
+        location_department=os.getenv("LOCATION_DEPARTMENT", ""),
+        first_date=os.getenv("FIRST_DATE", ""),
     )

@@ -1,10 +1,12 @@
 """Prompt templates for RAG system."""
 
 import os
+from datetime import datetime
 
 # Prompt for intent classification (routing)
+# Ajout de "Do not output anything else" pour garantir le string strict pour le code
 CLASSIFICATION_PROMPT = """You are a classifier for an events chatbot.
-Respond only with "RAG" or "CHAT". Provide no other explanation.
+Respond only with "RAG" or "CHAT". Do not output anything else.
 
 - Respond "RAG" if the question seeks specific event information
   (agenda, concerts, workshops, activities, location, hours, dates, prices, registration).
@@ -25,41 +27,28 @@ Question to classify: {question}"""
 def get_rag_prompt() -> str:
     """Get RAG prompt with location_department from environment.
 
-    Structure du prompt (optimale) :
-    1. Rôle & contexte → qui tu es
-    2. Tâche → ce que tu dois faire
-    3. Format & contraintes → comment répondre (AVANT de voir les données)
-    4. Données à utiliser
-    5. Input utilisateur (déclencheur)
-
-    Returns:
-        Formatted RAG prompt string
+    Optimisations :
+    - Suppression de la validation géo "hallucinatoire"
+    - Obligation de citer le titre (sécurité d'affichage)
     """
     location_department = os.getenv("LOCATION_DEPARTMENT", "Pyrénées-Atlantiques")
+    current_date = datetime.now().strftime("%A %d %B %Y")  # ex: "Samedi 29 Novembre 2025"
 
     return f"""# Rôle
-Tu es un assistant expert en événements français, spécialisé dans la région {location_department}.
+Tu es un assistant expert en événements culturels, spécialisé dans la zone : {location_department}.
 
 # Tâche
-Réponds à la question de l'utilisateur en utilisant UNIQUEMENT les événements fournis dans le contexte.
+Réponds à la question de l'utilisateur en te basant UNIQUEMENT sur les événements fournis dans le contexte ci-dessous.
 
-# Format & Contraintes (IMPORTANT - appliquer à toutes les réponses)
-- Réponds de manière CONCISE (2-3 phrases max)
-- ⚠️ VALIDATION GÉOGRAPHIQUE STRICTE: Si l'utilisateur demande des événements
-  dans une ville qui n'est pas dans le département {location_department}, ou dans une région différente de celle du département {location_department},
-  réponds IMMÉDIATEMENT: "Je suis spécialisé uniquement dans {location_department}.
-  Je ne dispose pas d'événements pour les autres régions."
-- TOUJOURS mentionner si tu as trouvé des événements dans le contexte,
-  même s'ils ne correspondent pas exactement au type recherché
-- Si des événements existent ET correspondent à la recherche → décris-les brièvement en 1-2 phrases
-- Si des événements existent MAIS ne correspondent pas au type cherché
-  (ex: "concerts" mais tu trouves "musées") → réponds: "Aucun événement de ce style
-  trouvé dans cette ville, mais voici d'autres événements disponibles..." et décris-les brièvement
-- Si LE CONTEXTE EST VIDE (vraiment aucun événement) → réponds:
-  "Aucun événement correspondant trouvé en {location_department} pour cette recherche."
-- NE FAIS PAS de suggestions alternatives longues ou d'événements non présents dans le contexte
-- NE RÉPÈTE PAS les détails (titre, adresse, date, URL) qui seront affichés séparément
-  en liste structurée
+# Contexte Temporel
+La date actuelle est le {current_date}. Utilise cette information pour répondre aux questions temporelles. Si l'utilisateur dit "aujourd'hui", "ce week-end" ou "cette semaine", réfère-toi à cette date.
+# Format & Contraintes
+1. **Concision** : Fais des réponses courtes et dynamiques (2-3 phrases max).
+2. **Citation** : Cite TOUJOURS le titre de l'événement dont tu parles (ex: "J'ai trouvé le **Festival de Jazz**..."). C'est crucial.
+3. **Filtre Ville** : Si l'utilisateur cherche une ville précise (ex: "à Pau") et que les événements du contexte sont ailleurs (ex: "à Bayonne"), dis clairement : "Je n'ai rien trouvé à Pau, mais voici ce qu'il y a à Bayonne...".
+4. **Honnêteté** : Si les événements du contexte ne correspondent pas du tout à la demande (ex: on cherche "Rock" et le contexte montre "Poterie"), réponds : "Je n'ai pas trouvé d'événements de ce type, mais voici ce qui est disponible...".
+5. **Date** Si l'utilisateur demande une date précise (ex: Juillet), vérifie scrupuleusement les champs de date de chaque événement. Si la date ne correspond pas, IGNORE l'événement, même s'il est dans le contexte."
+6. **Silence** : Si le contexte est vide ou totalement hors sujet, réponds simplement : "Désolé, je n'ai trouvé aucun événement correspondant dans mon agenda actuel."
 
 # Données du Contexte (événements disponibles)
 {{context}}
@@ -67,18 +56,14 @@ Réponds à la question de l'utilisateur en utilisant UNIQUEMENT les événement
 # Question de l'utilisateur
 {{input}}
 
-Répondre maintenant :"""
+Réponse :"""
 
 
 def get_chat_response() -> str:
-    """Get CHAT response with location_department from environment.
-
-    Returns:
-        Formatted CHAT response string
-    """
+    """Get CHAT response with location_department from environment."""
     location_department = os.getenv("LOCATION_DEPARTMENT", "Pyrénées-Atlantiques")
     return (
-        f"Je suis un assistant spécialisé dans les événements de {location_department}. "
-        "Posez-moi une question sur les événements, activités, concerts, ateliers, etc. "
-        "et je vous aiderai à trouver ce qui vous intéresse!"
+        f"Bonjour ! Je suis l'assistant culturel de {location_department}. "
+        "Je peux vous aider à trouver des concerts, expositions, festivals ou ateliers. "
+        "Que recherchez-vous aujourd'hui ?"
     )

@@ -161,14 +161,22 @@ class RAGService:
             RAG chain instance (Runnable that accepts dict with 'input' key)
         """
         llm = self._get_llm()
-
-        # Get RAG prompt with location_department from environment
         rag_prompt = get_rag_prompt()
         prompt = ChatPromptTemplate.from_template(rag_prompt)
         stuff_chain = create_stuff_documents_chain(llm, prompt)
 
+        # UTILISATION DU SCORE THRESHOLD
+        # Cela filtre automatiquement les documents non pertinents
+        retriever = vector_store.as_retriever(
+            search_type="similarity_score_threshold",
+            search_kwargs={
+                "k": self.RETRIEVER_K,  # Plafond max (6)
+                "score_threshold": 0.4,  # Seuil minimal de pertinence (0.0 à 1.0)
+            },
+        )
+
         rag_chain = create_retrieval_chain(
-            retriever=vector_store.as_retriever(search_kwargs={"k": self.RETRIEVER_K}),
+            retriever=retriever,
             combine_docs_chain=stuff_chain,
         )
 
@@ -389,35 +397,29 @@ class RAGService:
         return classify_query_intent(query, llm)
 
     def _extract_events_from_context(self, context_docs: list) -> list:
-        """Extract event information from context documents.
-
-        Args:
-            context_docs: List of LangChain Document objects from RAG context
-
-        Returns:
-            List of dictionaries with event information
-        """
         events = []
-        seen_titles = set()  # Avoid duplicates
+        seen_uids = set()  # Dédoublonnage sur UID, plus sûr que le titre
 
         for doc in context_docs:
-            metadata = doc.metadata or {}
-            title = metadata.get("originagenda_title", "Événement sans titre")
+            meta = doc.metadata or {}
 
-            # Avoid duplicate titles in results
-            if title not in seen_titles:
-                seen_titles.add(title)
-                events.append(
-                    {
-                        "title": title,
-                        "location": (
-                            f"{metadata.get('location_city', 'Lieu non spécifié')} "
-                            f"({metadata.get('location_postalcode', 'CP')})"
-                        ),
-                        "start_date": metadata.get("firstdate_begin", "Date non spécifiée"),
-                        "url": metadata.get("canonicalurl", None),
-                    }
-                )
+            # --- CORRECTION ICI ---
+            # On cherche d'abord 'title' (mis par DocumentBuilder), sinon fallback
+            title = meta.get("title") or meta.get("originagenda_title") or "Titre inconnu"
+            uid = meta.get("uid") or meta.get("canonicalurl") or title
+
+            if uid in seen_uids:
+                continue
+            seen_uids.add(uid)
+
+            events.append(
+                {
+                    "title": title,
+                    "location": f"{meta.get('location_city', '')} ({meta.get('location_department', '')})".strip(),
+                    "start_date": meta.get("firstdate_begin"),  # Assure-toi que c'est une string dans DocumentBuilder
+                    "url": meta.get("canonicalurl"),
+                }
+            )
 
         return events
 
@@ -474,28 +476,15 @@ class RAGService:
                         answer = result["answer"]
                     else:
                         answer = result.get("answer", "Aucune réponse générée")
-                        # Extract context docs (raw text chunks)
                         context_docs = result.get("context", [])
-                        context = [
-                            doc.page_content if hasattr(doc, "page_content") else str(doc) for doc in context_docs
-                        ]
 
-                        # Check if model declined to answer (should not return events)
-                        # Case 1: Geographic validation triggered
-                        # Case 2: Truly no events found (not just "no events of that style")
-                        if "Je suis spécialisé uniquement dans" in answer:
-                            logger.info("Geographic validation triggered - no events returned")
-                            events = []
-                            context = []
-                        elif "Aucun événement correspondant trouvé" in answer and "de ce style" not in answer:
-                            # Only block if truly no events, not if saying "no concerts but here are other events"
-                            logger.info("No events found - no events returned")
-                            events = []
-                            context = []
-                        else:
-                            # Extract context documents (source events)
-                            events = self._extract_events_from_context(context_docs)
-                            logger.info(f"✓ Extracted {len(events)} source events from context")
+                        # Pour RAGAS
+                        context = [d.page_content for d in context_docs]
+
+                        # On extrait TOUJOURS les sources, quoi qu'il arrive.
+                        # C'est plus transparent pour le débug du POC.
+                        events = self._extract_events_from_context(context_docs)
+                        logger.info(f"✓ Extracted {len(events)} source events")
 
             return {
                 "status": "success",

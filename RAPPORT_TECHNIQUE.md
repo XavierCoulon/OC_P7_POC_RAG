@@ -8,31 +8,36 @@
 ## 1. Objectifs du Projet
 
 ### Contexte
+
 La mission confiée par Puls-Events consiste à créer un système capable de recommander des événements culturels pertinents en réponse aux requêtes utilisateur. L'enjeu principal est de proposer une expérience conversationnelle intelligente qui combine :
-- La compréhension du contexte utilisateur
-- L'accès à une base de données d'événements structurée
-- La génération de réponses naturelles et contextuelles
+
+-   La compréhension du contexte utilisateur
+-   L'accès à une base de données d'événements structurée
+-   La génération de réponses naturelles et contextuelles
 
 ### Problématique
+
 Un système RAG (Retrieval Augmented Generation) répond précisément à ces besoins métier car il :
-- **Récupère** des événements pertinents depuis une base de données vectorielle
-- **Augmente** la génération du modèle LLM avec un contexte factuel et vérifiable
-- **Évite** les hallucinations en grounding les réponses sur des données réelles
-- **Scalabilite** : gère efficacement l'indexation et la recherche de milliers d'événements
+
+-   **Récupère** des événements pertinents depuis une base de données vectorielle
+-   **Augmente** la génération du modèle LLM avec un contexte factuel et vérifiable
+-   **Évite** les hallucinations en grounding les réponses sur des données réelles
+-   **Scalabilite** : gère efficacement l'indexation et la recherche de milliers d'événements
 
 ### Objectif du POC
+
 Démontrer la faisabilité technique, la pertinence métier et la performance du système.
 
 ### Périmètre
 
-| Dimension | Détails |
-|-----------|---------|
-| **Zone géographique** | Pyrénées-Atlantiques (configurable via `.env`) |
-| **Période d'événements** | À partir du 2025-01-01 (configurable) |
-| **Source de données** | API OpenAgenda |
-| **Multi-embedding** | Mistral AI (premium) + HuggingFace (CPU-friendly) |
-| **Modèle de génération** | Mistral Small Latest |
-| **Infrastructure** | FastAPI + Docker + FAISS |
+| Dimension                | Détails                                           |
+| ------------------------ | ------------------------------------------------- |
+| **Zone géographique**    | Pyrénées-Atlantiques (configurable via `.env`)    |
+| **Période d'événements** | À partir du 2025-01-01 (configurable)             |
+| **Source de données**    | API OpenAgenda                                    |
+| **Multi-embedding**      | Mistral AI (premium) + HuggingFace (CPU-friendly) |
+| **Modèle de génération** | Mistral Small Latest                              |
+| **Infrastructure**       | FastAPI + Docker + FAISS                          |
 
 ---
 
@@ -93,7 +98,7 @@ Démontrer la faisabilité technique, la pertinence métier et la performance du
 │  ┌──────────────────────────────────────────────────────┐ │
 │  │  Embedding Models (Multi-provider)                 │ │
 │  │  ├─ Mistral Embed API (1024-dim)                  │ │
-│  │  └─ HuggingFace (all-MiniLM-L6-v2, 384-dim)      │ │
+│  │  └─ HuggingFace (paraphrase-multilingual-MiniLM-L12-v2, 384-dim) │ │
 │  └──────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────┘
                           ↓
@@ -158,19 +163,19 @@ Utilisateur: "Quels concerts cette semaine ?"
 
 ### Technologies Utilisées
 
-| Catégorie | Technologie | Version | Rôle |
-|-----------|-------------|---------|------|
-| **Framework Web** | FastAPI | 0.121.3 | API REST moderne |
-| **LLM Orchestration** | LangChain | 1.0.8 | Pipeline RAG |
-| **LLM Generation** | Mistral AI | mistral-small-latest | Génération de réponses |
-| **Embeddings (Premium)** | Mistral Embed API | mistral-embed | Vectorisation 1024-dim |
-| **Embeddings (CPU)** | HuggingFace | all-MiniLM-L6-v2 | Vectorisation 384-dim |
-| **Vector Search** | FAISS | 1.13.0 | Index vectoriel |
-| **Validation** | Pydantic | 2.12.4 | Schémas de données |
-| **Tests** | Pytest | 9.0.1 | 135 tests, 86% coverage |
-| **Évaluation RAG** | Ragas | 0.3.9 | Métriques de qualité |
-| **Container** | Docker | 27.x | Déploiement |
-| **Package Manager** | uv | latest | Installation dépendances |
+| Catégorie                | Technologie       | Version                               | Rôle                     |
+| ------------------------ | ----------------- | ------------------------------------- | ------------------------ |
+| **Framework Web**        | FastAPI           | 0.121.3                               | API REST moderne         |
+| **LLM Orchestration**    | LangChain         | 1.0.8                                 | Pipeline RAG             |
+| **LLM Generation**       | Mistral AI        | mistral-small-latest                  | Génération de réponses   |
+| **Embeddings (Premium)** | Mistral Embed API | mistral-embed                         | Vectorisation 1024-dim   |
+| **Embeddings (CPU)**     | HuggingFace       | paraphrase-multilingual-MiniLM-L12-v2 | Vectorisation 384-dim    |
+| **Vector Search**        | FAISS             | 1.13.0                                | Index vectoriel          |
+| **Validation**           | Pydantic          | 2.12.4                                | Schémas de données       |
+| **Tests**                | Pytest            | 9.0.1                                 | 135 tests, 86% coverage  |
+| **Évaluation RAG**       | Ragas             | 0.3.9                                 | Métriques de qualité     |
+| **Container**            | Docker            | 27.x                                  | Déploiement              |
+| **Package Manager**      | uv                | latest                                | Installation dépendances |
 
 ---
 
@@ -181,6 +186,7 @@ Utilisateur: "Quels concerts cette semaine ?"
 **Endpoint** : `https://api.openagenda.com/v2/events`
 
 **Paramètres utilisés** :
+
 ```python
 BASE_URL = "https://api.openagenda.com/v2/events"
 LIMIT = 100  # Événements par page
@@ -191,36 +197,40 @@ FILTERS = {
 ```
 
 **Résultats** :
-- **Total événements** : 699
-- **Événements uniques** : 699 (0 duplicata)
-- **Région** : Pyrénées-Atlantiques
-- **Date minimale** : 2025-01-01
+
+-   **Total événements** : 699
+-   **Événements uniques** : 699 (0 duplicata)
+-   **Région** : Pyrénées-Atlantiques
+-   **Date minimale** : 2025-01-01
 
 ### Nettoyage des Données
 
 Anomalies corrigées durant le prétraitement :
 
-| Anomalie | Exemple | Traitement |
-|----------|---------|-----------|
-| **HTML dans descriptions** | `<p>Concert...</p>` | BeautifulSoup: extraction texte |
-| **Espaces multiples** | `Concert  jazz  \n  Bayonne` | Regex: normalisation |
-| **Dates nulles** | `firstdate_begin: null` | Conversion sûre en None |
-| **Keywords mixtes** | `['bricolage', 'jardinage']` ou `"bricolage;jardinage"` | Formatage uniforme "bricolage, jardinage" |
-| **Métadonnées manquantes** | Champ optionnel | Valeur par défaut "" ou None |
+| Anomalie                   | Exemple                                                 | Traitement                                |
+| -------------------------- | ------------------------------------------------------- | ----------------------------------------- |
+| **HTML dans descriptions** | `<p>Concert...</p>`                                     | BeautifulSoup: extraction texte           |
+| **Espaces multiples**      | `Concert  jazz  \n  Bayonne`                            | Regex: normalisation                      |
+| **Dates nulles**           | `firstdate_begin: null`                                 | Conversion sûre en None                   |
+| **Keywords mixtes**        | `['bricolage', 'jardinage']` ou `"bricolage;jardinage"` | Formatage uniforme "bricolage, jardinage" |
+| **Métadonnées manquantes** | Champ optionnel                                         | Valeur par défaut "" ou None              |
 
 **Fichier** : `app/utils/document_converter.py`
-- Fonction `clean_html_content()` : Supprime HTML
-- Fonction `normalize_whitespace()` : Normalise espaces
-- Fonction `format_keywords()` : Unifie format keywords
+
+-   Fonction `clean_html_content()` : Supprime HTML
+-   Fonction `normalize_whitespace()` : Normalise espaces
+-   Fonction `format_keywords()` : Unifie format keywords
 
 ### Chunking (Découpage de Documents)
 
 **Raison du découpage** :
-- Éviter tokens trop longs pour LLM
-- Permettre un matching sémantique plus granulaire
-- Améliorer la précision de la recherche vectorielle
+
+-   Éviter tokens trop longs pour LLM
+-   Permettre un matching sémantique plus granulaire
+-   Améliorer la précision de la recherche vectorielle
 
 **Paramètres** :
+
 ```python
 RecursiveCharacterTextSplitter(
     chunk_size=500,          # Tokens par chunk
@@ -232,6 +242,7 @@ RecursiveCharacterTextSplitter(
 **Résultat** : ~5,500 chunks (699 événements × ~7.8 avg chunks/event)
 
 **Structure d'un chunk (page_content)** :
+
 ```
 # [TITRE] Concert Jazz International
 
@@ -245,6 +256,7 @@ RecursiveCharacterTextSplitter(
 ```
 
 **Métadonnées associées** (metadata dict) :
+
 ```python
 {
     "event_uid": "12345",
@@ -264,13 +276,15 @@ RecursiveCharacterTextSplitter(
 #### Mistral AI (Premium)
 
 **Modèle** : `mistral-embed`
-- **Dimensionnalité** : 1024 dimensions
-- **Distance** : Cosine Similarity
-- **Coût** : API payante (Mistral AI)
-- **Qualité** : Excellente (spécialisée français)
-- **Temps** : ~40-80ms par requête
+
+-   **Dimensionnalité** : 1024 dimensions
+-   **Distance** : Cosine Similarity
+-   **Coût** : API payante (Mistral AI)
+-   **Qualité** : Excellente (spécialisée français)
+-   **Temps** : ~40-80ms par requête
 
 **Utilisation** :
+
 ```python
 MistralAIEmbeddings(
     model="mistral-embed",
@@ -280,26 +294,29 @@ MistralAIEmbeddings(
 
 #### HuggingFace (CPU-Friendly)
 
-**Modèle** : `all-MiniLM-L6-v2`
-- **Dimensionnalité** : 384 dimensions
-- **Distance** : Cosine Similarity
-- **Coût** : Gratuit (open-source)
-- **Qualité** : Très bonne (généraliste)
-- **Temps** : ~5-10ms par requête (CPU local)
+**Modèle** : `paraphrase-multilingual-MiniLM-L12-v2`
+
+-   **Dimensionnalité** : 384 dimensions
+-   **Distance** : Cosine Similarity
+-   **Coût** : Gratuit (open-source)
+-   **Qualité** : Très bonne (multilingue)
+-   **Temps** : ~5-10ms par requête (CPU local)
 
 **Utilisation** :
+
 ```python
 HuggingFaceEmbeddings(
-    model_name="all-MiniLM-L6-v2",
+    model_name="paraphrase-multilingual-MiniLM-L12-v2",
     model_kwargs={"device": "cpu"},
     encode_kwargs={"normalize_embeddings": True},
 )
 ```
 
 **Batching** :
-- Chunks traités par batch de 32
-- Requêtes côté API optimisées
-- Caching des modèles HuggingFace en local (`/data/hf_cache`)
+
+-   Chunks traités par batch de 32
+-   Requêtes côté API optimisées
+-   Caching des modèles HuggingFace en local (`/data/hf_cache`)
 
 ---
 
@@ -310,6 +327,7 @@ HuggingFaceEmbeddings(
 **LLM pour Génération** : Mistral AI `mistral-small-latest`
 
 **Configuration** :
+
 ```python
 ChatMistralAI(
     api_key=SecretStr(settings.mistral_api_key),
@@ -322,14 +340,14 @@ ChatMistralAI(
 
 ### Justification du Choix
 
-| Critère | Mistral Small | Alternatives |
-|---------|--------------|--------------|
-| **Coût** | ✅ Optimal pour POC | GPT-4: trop cher / Claude: non disponible |
-| **Qualité FR** | ✅ Excellente (français natif) | GPT-3.5: moins bon en FR |
-| **Latence** | ✅ ~150-300ms | LLaMA 2: non-API |
-| **API Disponibilité** | ✅ Stable et documentée | Open source: moins stable en prod |
-| **Coûts d'embedding** | ✅ Mistral Embed inclus | GPT: embeds séparées et chères |
-| **Intégration LangChain** | ✅ Native support | Certains modèles: support limité |
+| Critère                   | Mistral Small                  | Alternatives                              |
+| ------------------------- | ------------------------------ | ----------------------------------------- |
+| **Coût**                  | ✅ Optimal pour POC            | GPT-4: trop cher / Claude: non disponible |
+| **Qualité FR**            | ✅ Excellente (français natif) | GPT-3.5: moins bon en FR                  |
+| **Latence**               | ✅ ~150-300ms                  | LLaMA 2: non-API                          |
+| **API Disponibilité**     | ✅ Stable et documentée        | Open source: moins stable en prod         |
+| **Coûts d'embedding**     | ✅ Mistral Embed inclus        | GPT: embeds séparées et chères            |
+| **Intégration LangChain** | ✅ Native support              | Certains modèles: support limité          |
 
 ### Prompting Utilisé
 
@@ -390,13 +408,13 @@ Répondre maintenant :
 
 ### Limites du Modèle
 
-| Limite | Impact | Mitigation |
-|--------|--------|-----------|
-| **Context window** | Max ~8K tokens | Limiter K=6 (retrieval) |
-| **Hallucinations** | Peut inventer événements | Prompt strict "UNIQUEMENT contexte" |
-| **Français limité** | Moins bon que LLaMA FR | Acceptable en production |
-| **Coût API** | ~€0.002 par requête | Acceptable pour POC |
-| **Latence API** | 150-300ms | Acceptable pour web |
+| Limite              | Impact                   | Mitigation                          |
+| ------------------- | ------------------------ | ----------------------------------- |
+| **Context window**  | Max ~8K tokens           | Limiter K=6 (retrieval)             |
+| **Hallucinations**  | Peut inventer événements | Prompt strict "UNIQUEMENT contexte" |
+| **Français limité** | Moins bon que LLaMA FR   | Acceptable en production            |
+| **Coût API**        | ~€0.002 par requête      | Acceptable pour POC                 |
+| **Latence API**     | 150-300ms                | Acceptable pour web                 |
 
 ---
 
@@ -405,6 +423,7 @@ Répondre maintenant :
 ### FAISS : Configuration et Persistance
 
 **Index Type** : FAISS Flat (IndexFlatIP pour Cosine)
+
 ```python
 FAISS.from_documents(
     documents=all_documents,
@@ -414,15 +433,17 @@ FAISS.from_documents(
 ```
 
 **Pourquoi FAISS** :
-- ✅ Très rapide (1-5ms pour K=6)
-- ✅ Production-ready
-- ✅ Multi-metric support (Cosine, L2, IP)
-- ✅ Persistance simple
-- ✅ Integré LangChain
+
+-   ✅ Très rapide (1-5ms pour K=6)
+-   ✅ Production-ready
+-   ✅ Multi-metric support (Cosine, L2, IP)
+-   ✅ Persistance simple
+-   ✅ Integré LangChain
 
 ### Stratégie de Persistance
 
 **Répertoire** : `/data/faiss_index_<provider>/`
+
 ```
 /data/
 ├── faiss_index_mistral/
@@ -436,22 +457,24 @@ FAISS.from_documents(
 ```
 
 **Format de Sauvegarde** :
+
 ```json
 {
-  "provider": "mistral",
-  "total_events": 699,
-  "total_chunks": 5500,
-  "total_vectors": 5500,
-  "distance_strategy": "COSINE",
-  "embedding_dim": 1024,
-  "rebuilt_at": "2025-11-27T14:32:15.123456"
+    "provider": "mistral",
+    "total_events": 699,
+    "total_chunks": 5500,
+    "total_vectors": 5500,
+    "distance_strategy": "COSINE",
+    "embedding_dim": 1024,
+    "rebuilt_at": "2025-11-27T14:32:15.123456"
 }
 ```
 
 **Nommage** :
-- `faiss_index_mistral/` : Index avec embeddings Mistral
-- `faiss_index_huggingface/` : Index avec embeddings HuggingFace
-- Permet multi-provider sans conflit
+
+-   `faiss_index_mistral/` : Index avec embeddings Mistral
+-   `faiss_index_huggingface/` : Index avec embeddings HuggingFace
+-   Permet multi-provider sans conflit
 
 ### Métadonnées Associées
 
@@ -472,10 +495,11 @@ Chaque document chunked contient :
 ```
 
 **Utilité** :
-- ✅ Extraction d'événements après RAG
-- ✅ Filtrage géographique
-- ✅ Construction de réponse structurée
-- ✅ Audit/traçabilité
+
+-   ✅ Extraction d'événements après RAG
+-   ✅ Filtrage géographique
+-   ✅ Construction de réponse structurée
+-   ✅ Audit/traçabilité
 
 ---
 
@@ -484,97 +508,106 @@ Chaque document chunked contient :
 ### Framework : FastAPI 0.121.3
 
 **Avantages** :
-- ✅ Documentation automatique (Swagger UI)
-- ✅ Validation Pydantic native
-- ✅ Async/await support
-- ✅ Performance excellente
-- ✅ Déploiement simple
+
+-   ✅ Documentation automatique (Swagger UI)
+-   ✅ Validation Pydantic native
+-   ✅ Async/await support
+-   ✅ Performance excellente
+-   ✅ Déploiement simple
 
 ### Endpoints Clés
 
 #### 1. POST `/ask` – Query Endpoint
 
 **Requête** :
+
 ```json
 {
-  "question": "Quels concerts à Bayonne cette semaine ?"
+    "question": "Quels concerts à Bayonne cette semaine ?"
 }
 ```
 
 **Query Parameters** :
+
 ```
 embedding_provider: "mistral" | "huggingface" (default: "mistral")
 ```
 
 **Réponse** (200) :
+
 ```json
 {
-  "status": "success",
-  "question": "Quels concerts à Bayonne cette semaine ?",
-  "answer": "Voici les concerts disponibles cette semaine à Bayonne...",
-  "intent": "RAG",
-  "provider": "mistral",
-  "events": [
-    {
-      "uid": "event_123",
-      "title": "Concert Jazz",
-      "location": "Bayonne",
-      "date_start": "2025-01-15T20:00:00",
-      "date_end": "2025-01-15T23:00:00",
-      "url": "https://openagenda.com/..."
-    }
-  ]
+    "status": "success",
+    "question": "Quels concerts à Bayonne cette semaine ?",
+    "answer": "Voici les concerts disponibles cette semaine à Bayonne...",
+    "intent": "RAG",
+    "provider": "mistral",
+    "events": [
+        {
+            "uid": "event_123",
+            "title": "Concert Jazz",
+            "location": "Bayonne",
+            "date_start": "2025-01-15T20:00:00",
+            "date_end": "2025-01-15T23:00:00",
+            "url": "https://openagenda.com/..."
+        }
+    ]
 }
 ```
 
 **Erreur** (400) :
+
 ```json
 {
-  "status": "error",
-  "question": "...",
-  "answer": "Invalid embedding provider",
-  "intent": null,
-  "provider": "mistral"
+    "status": "error",
+    "question": "...",
+    "answer": "Invalid embedding provider",
+    "intent": null,
+    "provider": "mistral"
 }
 ```
 
 #### 2. POST `/rebuild` – Index Reconstruction
 
 **Query Parameters** :
+
 ```
 provider: "mistral" | "huggingface" (default: "mistral")
 ```
 
 **Réponse** (200) :
+
 ```json
 {
-  "status": "success",
-  "provider": "mistral",
-  "message": "Index rebuilt successfully",
-  "metadata": {
-    "total_events": 699,
-    "total_chunks": 5500,
-    "total_vectors": 5500,
-    "distance_strategy": "COSINE",
-    "embedding_dim": 1024,
-    "rebuilt_at": "2025-11-27T14:32:15.123456"
-  }
+    "status": "success",
+    "provider": "mistral",
+    "message": "Index rebuilt successfully",
+    "metadata": {
+        "total_events": 699,
+        "total_chunks": 5500,
+        "total_vectors": 5500,
+        "distance_strategy": "COSINE",
+        "embedding_dim": 1024,
+        "rebuilt_at": "2025-11-27T14:32:15.123456"
+    }
 }
 ```
 
 #### 3. GET `/health` – Health Check
 
 **Réponse** (200) :
+
 ```json
 {
-  "status": "ok",
-  "version": "0.1.0"
+    "status": "ok",
+    "version": "0.1.0"
 }
 ```
 
 ### Format des Requêtes/Réponses
 
 **Validation Pydantic** :
+
 ```python
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=3, max_length=500)
@@ -641,15 +674,16 @@ print("Événements trouvés:", len(result["events"]))
 
 **Couverture** : 86% (135 tests)
 
-| Module | Tests | Couverture | Fichier |
-|--------|-------|-----------|---------|
-| **classification.py** | 21 | 100% | `test_classification.py` |
-| **document_converter.py** | 26 | 100% | `test_document_converter.py` |
-| **index_manager.py** | 28 | 96% | `test_index_manager.py` |
-| **rag_service.py** | 40 | 92% | `test_rag_service.py` |
-| **routes** | 18 | 100% | `test_query_endpoint.py`, `test_health_rebuild_endpoints.py` |
+| Module                    | Tests | Couverture | Fichier                                                      |
+| ------------------------- | ----- | ---------- | ------------------------------------------------------------ |
+| **classification.py**     | 21    | 100%       | `test_classification.py`                                     |
+| **document_converter.py** | 26    | 100%       | `test_document_converter.py`                                 |
+| **index_manager.py**      | 28    | 96%        | `test_index_manager.py`                                      |
+| **rag_service.py**        | 40    | 92%        | `test_rag_service.py`                                        |
+| **routes**                | 18    | 100%       | `test_query_endpoint.py`, `test_health_rebuild_endpoints.py` |
 
 **Exécution** :
+
 ```bash
 make coverage
 # Génère rapport HTML: htmlcov/index.html
@@ -657,14 +691,14 @@ make coverage
 
 ### Gestion des Erreurs
 
-| Erreur | Code HTTP | Message |
-|--------|-----------|---------|
-| **Clé API invalide** | 403 | "Invalid API key" |
-| **Question manquante** | 422 | "Field required" |
-| **Provider invalide** | 400 | "Invalid embedding provider" |
-| **Index non trouvé** | 404 | "No index found. Call /rebuild first" |
-| **Erreur API OpenAgenda** | 503 | "Failed to fetch events" |
-| **Erreur LLM** | 500 | "LLM service error" |
+| Erreur                    | Code HTTP | Message                               |
+| ------------------------- | --------- | ------------------------------------- |
+| **Clé API invalide**      | 403       | "Invalid API key"                     |
+| **Question manquante**    | 422       | "Field required"                      |
+| **Provider invalide**     | 400       | "Invalid embedding provider"          |
+| **Index non trouvé**      | 404       | "No index found. Call /rebuild first" |
+| **Erreur API OpenAgenda** | 503       | "Failed to fetch events"              |
+| **Erreur LLM**            | 500       | "LLM service error"                   |
 
 ### Limitations
 
@@ -682,12 +716,13 @@ make coverage
 **Nombre d'exemples** : Script Ragas fourni pour évaluation
 
 **Méthode d'annotation** :
-- Ground truth manuellement annoté ou issu de la base OpenAgenda
-- Test questions couvrent différents intents :
-  - Recherches spécifiques : "Quels concerts ?"
-  - Recherches géographiques : "Événements à Bayonne"
-  - Recherches temporelles : "Événements cette semaine"
-  - Requêtes chat : "Bonjour, comment vas-tu ?"
+
+-   Ground truth manuellement annoté ou issu de la base OpenAgenda
+-   Test questions couvrent différents intents :
+    -   Recherches spécifiques : "Quels concerts ?"
+    -   Recherches géographiques : "Événements à Bayonne"
+    -   Recherches temporelles : "Événements cette semaine"
+    -   Requêtes chat : "Bonjour, comment vas-tu ?"
 
 **Fichier** : `scripts/ragas_eval.py`
 
@@ -695,14 +730,15 @@ make coverage
 
 **Framework** : Ragas 0.3.9
 
-| Métrique | Description | Plage |
-|----------|-------------|-------|
-| **Faithfulness** | Réponse basée sur contexte (pas hallucination) | 0-1 |
-| **Answer Relevancy** | Réponse pertinente vs question | 0-1 |
-| **Context Recall** | Contexte contient info nécessaire | 0-1 |
-| **Context Precision** | Contexte sans info inutile | 0-1 |
+| Métrique              | Description                                    | Plage |
+| --------------------- | ---------------------------------------------- | ----- |
+| **Faithfulness**      | Réponse basée sur contexte (pas hallucination) | 0-1   |
+| **Answer Relevancy**  | Réponse pertinente vs question                 | 0-1   |
+| **Context Recall**    | Contexte contient info nécessaire              | 0-1   |
+| **Context Precision** | Contexte sans info inutile                     | 0-1   |
 
 **Utilisation** :
+
 ```bash
 python scripts/ragas_eval.py \
   --provider mistral \
@@ -727,10 +763,11 @@ python scripts/ragas_eval.py \
 ```
 
 **Interprétation** :
-- ✅ **Faithfulness 0.87** : 87% des réponses respectent le contexte
-- ✅ **Answer Relevancy 0.84** : 84% des réponses sont pertinentes
-- ✅ **Context Recall 0.92** : 92% des infos nécessaires présentes
-- ⚠️ **Context Precision 0.78** : 22% d'infos inutiles dans contexte (à améliorer avec K < 6)
+
+-   ✅ **Faithfulness 0.87** : 87% des réponses respectent le contexte
+-   ✅ **Answer Relevancy 0.84** : 84% des réponses sont pertinentes
+-   ✅ **Context Recall 0.92** : 92% des infos nécessaires présentes
+-   ⚠️ **Context Precision 0.78** : 22% d'infos inutiles dans contexte (à améliorer avec K < 6)
 
 #### Analyse Qualitative
 
@@ -773,96 +810,109 @@ A: "Il y a plusieurs concerts prévus..."
 ### Ce qui Fonctionne Bien ✅
 
 1. **Multi-embedding providers**
-   - Permet flexibilité (Mistral premium vs HuggingFace gratuit)
-   - Basculement facile via query parameter
+
+    - Permet flexibilité (Mistral premium vs HuggingFace gratuit)
+    - Basculement facile via query parameter
 
 2. **Classification d'intent**
-   - Distinction RAG/CHAT fonctionne bien
-   - Réduit appels API inutiles
+
+    - Distinction RAG/CHAT fonctionne bien
+    - Réduit appels API inutiles
 
 3. **Architecture modulaire**
-   - RAGService bien séparé des routes
-   - Facile à tester (86% coverage)
+
+    - RAGService bien séparé des routes
+    - Facile à tester (86% coverage)
 
 4. **Persistance FAISS**
-   - Index sauvegardé/chargé rapidement
-   - Multi-provider sans conflit
+
+    - Index sauvegardé/chargé rapidement
+    - Multi-provider sans conflit
 
 5. **Documentation API**
-   - FastAPI génère Swagger auto
-   - Schemas Pydantic clairs
+    - FastAPI génère Swagger auto
+    - Schemas Pydantic clairs
 
 ### Limites du POC
 
-| Limitation | Impact | Sévérité |
-|-----------|--------|----------|
-| **Volumétrie fixe** | ~5,500 chunks max | Faible |
-| **Pas de caching** | Requêtes répétées → appels LLM | Moyen |
-| **Rate limiting absent** | Pas de protection DoS | Moyen |
-| **Context precision 0.78** | 22% infos inutiles | Moyen |
-| **Coût API Mistral** | ~€0.002/requête | Moyen |
-| **Single provider LLM** | Pas de fallback en cas panne | Moyen |
-| **Pas de analytics** | Aucune métrique d'usage | Faible |
+| Limitation                 | Impact                         | Sévérité |
+| -------------------------- | ------------------------------ | -------- |
+| **Volumétrie fixe**        | ~5,500 chunks max              | Faible   |
+| **Pas de caching**         | Requêtes répétées → appels LLM | Moyen    |
+| **Rate limiting absent**   | Pas de protection DoS          | Moyen    |
+| **Context precision 0.78** | 22% infos inutiles             | Moyen    |
+| **Coût API Mistral**       | ~€0.002/requête                | Moyen    |
+| **Single provider LLM**    | Pas de fallback en cas panne   | Moyen    |
+| **Pas de analytics**       | Aucune métrique d'usage        | Faible   |
 
 ### Améliorations Possibles
 
 #### À Court Terme (Sprint 1-2)
 
 1. **Rate Limiting**
-   ```python
-   from slowapi import Limiter
-   # Limiter: 100 requêtes par min par clé API
-   ```
+
+    ```python
+    from slowapi import Limiter
+    # Limiter: 100 requêtes par min par clé API
+    ```
 
 2. **Caching Résultats**
-   ```python
-   from redis import Redis
-   # Cache réponses 1h (questions identiques)
-   ```
+
+    ```python
+    from redis import Redis
+    # Cache réponses 1h (questions identiques)
+    ```
 
 3. **Optimiser Context Precision**
-   ```python
-   # Réduire K de 6 → 4
-   # Fine-tuner le prompt pour filtrer
-   ```
+
+    ```python
+    # Réduire K de 6 → 4
+    # Fine-tuner le prompt pour filtrer
+    ```
 
 4. **Add Logging Structuré**
-   ```python
-   from structlog import get_logger
-   # Suivi usage et performance
-   ```
+    ```python
+    from structlog import get_logger
+    # Suivi usage et performance
+    ```
 
 #### À Moyen Terme (Sprint 3-4)
 
 5. **Provider LLM Fallback**
-   ```python
-   # Mistral principal, Claude fallback
-   # Améliore disponibilité
-   ```
+
+    ```python
+    # Mistral principal, Claude fallback
+    # Améliore disponibilité
+    ```
 
 6. **Augmentation Base d'Événements**
-   - Intégrer autres régions (multi-région)
-   - Autres sources de données (Eventbrite, etc.)
+
+    - Intégrer autres régions (multi-région)
+    - Autres sources de données (Eventbrite, etc.)
 
 7. **Fine-tuning Embedding**
-   - Créer modèle custom pour domaine événementiel
-   - Meilleure sémantique "jazz", "théâtre", etc.
+
+    - Créer modèle custom pour domaine événementiel
+    - Meilleure sémantique "jazz", "théâtre", etc.
 
 8. **Evaluation Set Automatisé**
-   - Tests continus Ragas
-   - Dashboard Grafana de qualité
+    - Tests continus Ragas
+    - Dashboard Grafana de qualité
 
 #### À Long Terme (Production)
 
 9. **Passage Multi-Index FAISS**
-   - Index hierarchique par région
-   - Meilleure scalabilité
+
+    - Index hierarchique par région
+    - Meilleure scalabilité
 
 10. **Agent Framework LangChain**
+
     - Actions: web search, calendar intégration
     - Permet recommandations proactives
 
 11. **Analytics et Feedback**
+
     - User feedback sur qualité réponses
     - Tracking conversions (événements réservés)
 
@@ -963,17 +1013,17 @@ OC_P7_POC_RAG/
 
 ### Explication par Répertoire
 
-| Répertoire | Responsabilité | Fichiers clés |
-|-----------|-----------------|--------------|
-| **app/core/** | Logique métier RAG | `rag_service.py`, `embeddings.py`, `classification.py` |
-| **app/services/** | Services (stateful) | `rag_service.py` (orchestration) |
-| **app/routes/** | Endpoints FastAPI | `query.py` (/ask), `rebuild.py` (/rebuild) |
-| **app/external/** | Intégrations externes | `openagenda_fetch.py` (OpenAgenda API) |
-| **app/utils/** | Utilitaires | `document_converter.py` (chunking) |
-| **tests/** | Suites de test | 135 tests, 86% coverage |
-| **scripts/** | Scripts d'évaluation | `ragas_eval.py` (Ragas metrics) |
-| **data/** | Données persistées | FAISS indices multi-provider |
-| **notebooks/** | Expérimentation | `playground.ipynb` |
+| Répertoire        | Responsabilité        | Fichiers clés                                          |
+| ----------------- | --------------------- | ------------------------------------------------------ |
+| **app/core/**     | Logique métier RAG    | `rag_service.py`, `embeddings.py`, `classification.py` |
+| **app/services/** | Services (stateful)   | `rag_service.py` (orchestration)                       |
+| **app/routes/**   | Endpoints FastAPI     | `query.py` (/ask), `rebuild.py` (/rebuild)             |
+| **app/external/** | Intégrations externes | `openagenda_fetch.py` (OpenAgenda API)                 |
+| **app/utils/**    | Utilitaires           | `document_converter.py` (chunking)                     |
+| **tests/**        | Suites de test        | 135 tests, 86% coverage                                |
+| **scripts/**      | Scripts d'évaluation  | `ragas_eval.py` (Ragas metrics)                        |
+| **data/**         | Données persistées    | FAISS indices multi-provider                           |
+| **notebooks/**    | Expérimentation       | `playground.ipynb`                                     |
 
 ---
 
@@ -1037,29 +1087,29 @@ Voir section 4. "Choix du Modèle NLP" → "Prompting Utilisé"
 
 ```json
 {
-  "status": "success",
-  "question": "Quels concerts à Bayonne ce mois ?",
-  "answer": "Voici 2 concerts disponibles à Bayonne en janvier :\n\n1. **Concert Jazz International** - 15 janvier, 20h00\n   Lieu: Théâtre de Bayonne, 10 Rue Thiers, 64100 Bayonne\n   Entrée: Gratuit / Inscription recommandée\n   Retrouvez les détails et réservez sur OpenAgenda.\n\n2. **Festival Rock Pyrénéen** - 22 janvier, 19h00\n   Lieu: Parc de la Monnaie, Bayonne\n   Entrée: €15\n   Plus d'infos sur le site officiel.",
-  "intent": "RAG",
-  "provider": "mistral",
-  "events": [
-    {
-      "uid": "event_123456",
-      "title": "Concert Jazz International",
-      "location": "Bayonne",
-      "date_start": "2025-01-15T20:00:00",
-      "date_end": "2025-01-15T23:00:00",
-      "url": "https://openagenda.com/events/concert-jazz-international"
-    },
-    {
-      "uid": "event_123457",
-      "title": "Festival Rock Pyrénéen",
-      "location": "Bayonne",
-      "date_start": "2025-01-22T19:00:00",
-      "date_end": "2025-01-22T22:00:00",
-      "url": "https://openagenda.com/events/festival-rock-pyrene"
-    }
-  ]
+    "status": "success",
+    "question": "Quels concerts à Bayonne ce mois ?",
+    "answer": "Voici 2 concerts disponibles à Bayonne en janvier :\n\n1. **Concert Jazz International** - 15 janvier, 20h00\n   Lieu: Théâtre de Bayonne, 10 Rue Thiers, 64100 Bayonne\n   Entrée: Gratuit / Inscription recommandée\n   Retrouvez les détails et réservez sur OpenAgenda.\n\n2. **Festival Rock Pyrénéen** - 22 janvier, 19h00\n   Lieu: Parc de la Monnaie, Bayonne\n   Entrée: €15\n   Plus d'infos sur le site officiel.",
+    "intent": "RAG",
+    "provider": "mistral",
+    "events": [
+        {
+            "uid": "event_123456",
+            "title": "Concert Jazz International",
+            "location": "Bayonne",
+            "date_start": "2025-01-15T20:00:00",
+            "date_end": "2025-01-15T23:00:00",
+            "url": "https://openagenda.com/events/concert-jazz-international"
+        },
+        {
+            "uid": "event_123457",
+            "title": "Festival Rock Pyrénéen",
+            "location": "Bayonne",
+            "date_start": "2025-01-22T19:00:00",
+            "date_end": "2025-01-22T22:00:00",
+            "url": "https://openagenda.com/events/festival-rock-pyrene"
+        }
+    ]
 }
 ```
 

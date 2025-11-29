@@ -72,9 +72,10 @@ class TestEventExtraction:
         # Mock document with metadata
         mock_doc = Mock()
         mock_doc.metadata = {
-            "originagenda_title": "Test Event",
+            "title": "Test Event",
+            "uid": "event-123",
             "location_city": "Pau",
-            "location_postalcode": "64000",
+            "location_department": "Pyrénées-Atlantiques",
             "firstdate_begin": "2025-06-21",
             "canonicalurl": "https://example.com/event",
         }
@@ -83,7 +84,7 @@ class TestEventExtraction:
 
         assert len(events) == 1
         assert events[0]["title"] == "Test Event"
-        assert events[0]["location"] == "Pau (64000)"
+        assert events[0]["location"] == "Pau (Pyrénées-Atlantiques)"
         assert events[0]["start_date"] == "2025-06-21"
         assert events[0]["url"] == "https://example.com/event"
 
@@ -95,34 +96,37 @@ class TestEventExtraction:
         events = rag_service._extract_events_from_context([mock_doc])
 
         assert len(events) == 1
-        assert events[0]["title"] == "Événement sans titre"
-        assert events[0]["location"] == "Lieu non spécifié (CP)"
-        assert events[0]["start_date"] == "Date non spécifiée"
+        assert events[0]["title"] == "Titre inconnu"
+        # Location is formatted as "city (dept)" but both are empty, so it becomes "()" then stripped
+        assert events[0]["location"] == "()"
+        assert events[0]["start_date"] is None
         assert events[0]["url"] is None
 
     def test_extract_events_removes_duplicates(self, rag_service):
-        """Test that duplicate event titles are removed."""
+        """Test that duplicate event UIDs are removed."""
         mock_doc1 = Mock()
         mock_doc1.metadata = {
-            "originagenda_title": "Same Event",
+            "title": "Same Event",
+            "uid": "event-123",  # Same UID
             "location_city": "Pau",
-            "location_postalcode": "64000",
+            "location_department": "Pyrénées-Atlantiques",
             "firstdate_begin": "2025-06-21",
             "canonicalurl": "https://example.com/event1",
         }
 
         mock_doc2 = Mock()
         mock_doc2.metadata = {
-            "originagenda_title": "Same Event",
+            "title": "Same Event",
+            "uid": "event-123",  # Same UID - should be filtered
             "location_city": "Bayonne",
-            "location_postalcode": "64100",
+            "location_department": "Pyrénées-Atlantiques",
             "firstdate_begin": "2025-06-22",
             "canonicalurl": "https://example.com/event2",
         }
 
         events = rag_service._extract_events_from_context([mock_doc1, mock_doc2])
 
-        # Should only have 1 event (duplicate removed)
+        # Should only have 1 event (duplicate UID removed)
         assert len(events) == 1
         assert events[0]["title"] == "Same Event"
 
@@ -193,23 +197,34 @@ class TestAnswerQuestion:
     def test_answer_question_geographic_validation_blocks_events(
         self, mock_invoke, mock_get_chain, mock_classify, rag_service
     ):
-        """Test that geographic validation blocks events from being returned."""
+        """Test that events are always extracted from context (no longer blocked)."""
         mock_classify.return_value = INTENT_RAG
         mock_chain = Mock()
         mock_get_chain.return_value = mock_chain
         rag_service.rag_chains["mistral"] = mock_chain
 
         # Mock RAG response with geographic validation message
+        mock_doc = Mock()
+        mock_doc.metadata = {
+            "title": "Event",
+            "uid": "event-123",
+            "location_city": "Paris",
+            "location_department": "Île-de-France",
+            "firstdate_begin": "2025-06-21",
+            "canonicalurl": "https://example.com",
+        }
+
         mock_invoke.return_value = {
             "answer": "Je suis spécialisé uniquement dans Pyrénées-Atlantiques. "
             "Je ne dispose pas d'événements pour les autres régions.",
-            "context": [Mock(metadata={"originagenda_title": "Event"})],
+            "context": [mock_doc],
         }
 
         result = rag_service.answer_question("Des concerts à Paris ?", provider="mistral")
 
         assert result["status"] == "success"
-        assert result["events"] == []
+        # Events are now ALWAYS extracted for transparency (even if out of scope)
+        assert len(result["events"]) == 1
         assert "Je suis spécialisé uniquement dans" in result["answer"]
 
     @patch("app.services.rag_service.RAGService.classify_intent")
@@ -224,9 +239,10 @@ class TestAnswerQuestion:
 
         mock_doc = Mock()
         mock_doc.metadata = {
-            "originagenda_title": "Concert",
+            "title": "Concert",
+            "uid": "event-123",
             "location_city": "Anglet",
-            "location_postalcode": "64600",
+            "location_department": "Pyrénées-Atlantiques",
             "firstdate_begin": "2025-06-21",
             "canonicalurl": "https://example.com",
         }
