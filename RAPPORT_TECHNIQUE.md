@@ -161,6 +161,8 @@ Utilisateur: "Quels concerts cette semaine ?"
    }
 ```
 
+> 💡 **Diagrammes UML détaillés** : Voir le fichier [ARCHITECTURE_UML.md](ARCHITECTURE_UML.md) pour les schémas complets des classes et flux de données.
+
 ### Technologies Utilisées
 
 | Catégorie                | Technologie       | Version                               | Rôle                     |

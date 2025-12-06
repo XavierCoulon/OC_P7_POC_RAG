@@ -11,7 +11,12 @@
 
 ## 📖 Documentation Technique
 
-Pour une compréhension complète du système, architecture et implémentation, consultez **[RAPPORT_TECHNIQUE.md](RAPPORT_TECHNIQUE.md)** (guide exhaustif de 450+ lignes couvrant tous les aspects du projet).
+Pour une compréhension complète du système, architecture et implémentation, consultez :
+
+| Document                                         | Contenu                                                           |
+| ------------------------------------------------ | ----------------------------------------------------------------- |
+| **[RAPPORT_TECHNIQUE.md](RAPPORT_TECHNIQUE.md)** | Guide technique exhaustif (450+ lignes) couvrant tous les aspects |
+| **[ARCHITECTURE_UML.md](ARCHITECTURE_UML.md)**   | Diagrammes UML détaillés des classes et flux de données           |
 
 ---
 
@@ -141,7 +146,12 @@ User Query
 JSON Response
 ```
 
-Pour architecture détaillée avec diagrammes UML, voir **[RAPPORT_TECHNIQUE.md - Section 2](RAPPORT_TECHNIQUE.md#2-architecture-du-système)**.
+📊 **Diagrammes UML détaillés** : Voir **[ARCHITECTURE_UML.md](ARCHITECTURE_UML.md)** pour :
+
+-   Diagramme complet des classes (RAGService, EmbeddingProvider, IndexManager, etc.)
+-   Flux de construction d'index (6 étapes)
+-   Flux de réponse à une requête (9 étapes)
+-   Cas d'usage CHAT vs RAG
 
 ---
 
