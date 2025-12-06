@@ -11,6 +11,7 @@ from datasets import Dataset
 from dotenv import load_dotenv
 from ragas import evaluate
 from ragas.metrics import answer_relevancy, context_precision, context_recall, faithfulness
+from ragas.run_config import RunConfig
 
 # Add parent directory to path FIRST (before any imports from app)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -103,6 +104,12 @@ def eval_rag_service(
         print("❌ No RAG responses with context found. Cannot evaluate with Ragas.")
         return
 
+    print("\n📋 Dataset for Ragas:")
+    print(f"   Total questions: {len(questions)}")
+    print(f"   Total contexts: {sum(len(ctx) for ctx in contexts_list)}")
+    print(f"   Avg contexts per question: {sum(len(ctx) for ctx in contexts_list) / len(questions):.1f}")
+    print(f"   Sample context length: {len(contexts_list[0][0]) if contexts_list[0] else 0} chars")
+
     # Create Ragas dataset
     dataset = Dataset.from_dict(
         {
@@ -124,43 +131,63 @@ def eval_rag_service(
         embeddings = embedding_provider.get_embeddings()
 
         # Run evaluation - pass the ChatMistralAI directly as LLM
+        # Use sequential execution to avoid Mistral API rate limiting (429 errors)
+        run_config = RunConfig(max_workers=1, timeout=300)
         results = evaluate(
             dataset,
             metrics=[faithfulness, answer_relevancy, context_recall, context_precision],
             llm=mistral_llm,
             embeddings=embeddings,
+            run_config=run_config,
         )
 
         # Convert results to dictionary
         results_dict = results.to_pandas().to_dict("list")
 
         # Convert lists to means (Ragas returns list of scores per sample)
-        faithfulness_score = (
-            statistics.mean(results_dict["faithfulness"])
-            if isinstance(results_dict["faithfulness"], list)
-            else results_dict["faithfulness"]
-        )
-        answer_relevancy_score = (
-            statistics.mean(results_dict["answer_relevancy"])
-            if isinstance(results_dict["answer_relevancy"], list)
-            else results_dict["answer_relevancy"]
-        )
-        context_recall_score = (
-            statistics.mean(results_dict["context_recall"])
-            if isinstance(results_dict["context_recall"], list)
-            else results_dict["context_recall"]
-        )
-        context_precision_score = (
-            statistics.mean(results_dict["context_precision"])
-            if isinstance(results_dict["context_precision"], list)
-            else results_dict["context_precision"]
-        )
+        # Filter out NaN values before computing mean
+        faithfulness_list = [
+            s for s in results_dict["faithfulness"] if not (isinstance(s, float) and s != s)
+        ]  # NaN check
+        faithfulness_score = statistics.mean(faithfulness_list) if faithfulness_list else 0.0
+
+        answer_relevancy_list = [s for s in results_dict["answer_relevancy"] if not (isinstance(s, float) and s != s)]
+        answer_relevancy_score = statistics.mean(answer_relevancy_list) if answer_relevancy_list else 0.0
+
+        context_recall_list = [s for s in results_dict["context_recall"] if not (isinstance(s, float) and s != s)]
+        context_recall_score = statistics.mean(context_recall_list) if context_recall_list else 0.0
+
+        context_precision_list = [s for s in results_dict["context_precision"] if not (isinstance(s, float) and s != s)]
+        context_precision_score = statistics.mean(context_precision_list) if context_precision_list else 0.0
+
+        # Debug: show raw scores if there are NaNs
+        if len(faithfulness_list) < len(results_dict["faithfulness"]):
+            print("\n⚠️  Debug - NaN values detected:")
+            nan_count_faith = len(results_dict["faithfulness"]) - len(faithfulness_list)
+            total_count_faith = len(results_dict["faithfulness"])
+            print(f"   Faithfulness: {nan_count_faith} NaN(s) out of {total_count_faith}")
+        if len(context_precision_list) < len(results_dict["context_precision"]):
+            nan_count = len(results_dict["context_precision"]) - len(context_precision_list)
+            total_count = len(results_dict["context_precision"])
+            print(f"   Context Precision: {nan_count} NaN(s) out of {total_count}")
 
         print("\n✅ Results:")
-        print(f"  Faithfulness:      {faithfulness_score:.1%}")
-        print(f"  Answer Relevancy:  {answer_relevancy_score:.1%}")
-        print(f"  Context Recall:    {context_recall_score:.1%}")
-        print(f"  Context Precision: {context_precision_score:.1%}")
+        print(
+            f"  Faithfulness:      {faithfulness_score:.1%}"
+            + (" (⚠️ has NaN)" if len(faithfulness_list) < len(results_dict["faithfulness"]) else "")
+        )
+        print(
+            f"  Answer Relevancy:  {answer_relevancy_score:.1%}"
+            + (" (⚠️ has NaN)" if len(answer_relevancy_list) < len(results_dict["answer_relevancy"]) else "")
+        )
+        print(
+            f"  Context Recall:    {context_recall_score:.1%}"
+            + (" (⚠️ has NaN)" if len(context_recall_list) < len(results_dict["context_recall"]) else "")
+        )
+        print(
+            f"  Context Precision: {context_precision_score:.1%}"
+            + (" (⚠️ has NaN)" if len(context_precision_list) < len(results_dict["context_precision"]) else "")
+        )
 
         overall = (faithfulness_score + answer_relevancy_score + context_recall_score + context_precision_score) / 4
 
