@@ -171,8 +171,8 @@ class RAGService:
         # UTILISATION DU SCORE THRESHOLD ADAPTATIF
         # Différents providers ont des ranges de scores différents
         # - Mistral (COSINE): [0, 1], optimal threshold: 0.4
-        # - HuggingFace (COSINE normalized): peut inclure négatifs, optimal threshold: -0.1
-        score_threshold = -0.1 if provider == "huggingface" else 0.4
+        # - HuggingFace (COSINE normalized): peut inclure négatifs, optimal threshold: -0.5
+        score_threshold = -0.5 if provider == "huggingface" else 0.4
         logger.debug(f"Using score_threshold={score_threshold} for provider={provider}")
 
         retriever = vector_store.as_retriever(
